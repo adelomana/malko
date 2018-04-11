@@ -11,14 +11,14 @@ import matplotlib,matplotlib.pyplot
 matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsize':14,'ytick.labelsize':14})
 matplotlib.rcParams['pdf.fonttype']=42
 
-def entropyCalculator(v):
+def entropyCalculator(v,ground,sky):
 
     '''
     This function computes the entropy of a vector under defined range of expression
     '''
 
     # f.1. calculate the probability distribution
-    step=0.1
+    step=(sky-ground)/len(cellIDs)
     k=numpy.arange(ground,sky+step,step)
     n,bins=numpy.histogram(v,bins=k)
     y=[]
@@ -73,7 +73,7 @@ def dataReader():
             vector=line.split('\t')
             cellID=vector[0]
             cellIDs.append(cellID)
-            clusterID=[1]
+            clusterID=int(vector[1])
             if clusterID not in clusterIDs:
                 clusterIDs.append(clusterID)
             e=vector[2:]
@@ -91,12 +91,6 @@ def dataReader():
 
             metadata[cellID]=clusterID
 
-    # check for redundancy
-    #print(len(geneNames),len(cellIDs))
-    #geneNames=list(set(geneNames))
-    #cellIDs=list(set(cellIDs))
-    #print(len(geneNames),len(cellIDs))
-
     geneNames.sort()
     cellIDs.sort()
 
@@ -108,16 +102,24 @@ def tSNERunner(task):
     This function calls t-SNE and makes a figure.
     '''
 
+    print('\t\t working with task {}...'.format(task))
+    
     thePerplexity=task[0]
     theLearningRate=task[1]
 
-    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',method='barnes_hut').fit_transform(expressionMatrix)
+    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',method='barnes_hut',verbose=True).fit_transform(log2TPMsPO)
 
     figureName='figures/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
-    
-    matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1])
+    matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+    for i in range(len(selectedColors)):
+        matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
+    matplotlib.pyplot.legend()
+    matplotlib.pyplot.xlabel('tSNE1')
+    matplotlib.pyplot.ylabel('tSNE2')
+    matplotlib.pyplot.tight_layout()
     matplotlib.pyplot.savefig(figureName)
     matplotlib.pyplot.clf()
+    print()
 
     return None
 
@@ -127,7 +129,9 @@ def tSNERunner(task):
 
 # 0. user defined variables
 dataFilePath='/Volumes/omics4tb/alomana/projects/malko/data/single.cell.data.for.Serdar.and.Adrian.txt'
-numberOfThreads=-1
+numberOfThreads=4
+selectedColors=['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
+groupLabels=['State 1','State 2','State 3','State 4']
 
 # 1. reading data
 print('reading data...')
@@ -145,12 +149,25 @@ for cellID in cellIDs:
     expressionMatrix.append(row)
 expressionMatrix=numpy.array(expressionMatrix)
 
-# correct expression to non-negative data
-print('\t removing negative values...')
-expressionMatrix[expressionMatrix<0]=0
-ground=numpy.min(expressionMatrix)
-sky=numpy.max(expressionMatrix)
-print('\t ground {}; sky {}.'.format(ground,sky))
+# correct expression from negative values and provide TPMs, log10 TPM+1 and log2 TPM+1
+expressionMatrix=numpy.array(expressionMatrix)
+TPMsPlusOne=10**expressionMatrix
+TPMs=TPMsPlusOne-TPMsPlusOne[0,0]
+
+log2TPMsPO=numpy.log2(TPMs+1)
+log10TPMsPO=numpy.log10(TPMs+1)
+
+ground=numpy.min(TPMs); sky=numpy.max(TPMs)
+ground2=numpy.min(log2TPMsPO); sky2=numpy.max(log2TPMsPO)
+ground10=numpy.min(log10TPMsPO); sky10=numpy.max(log10TPMsPO)
+
+print('\t TPMs: ground {}; sky {}.'.format(ground,sky))
+print('\t log2 (TPMs+1): ground {}; sky {}.'.format(ground2,sky2))
+print('\t log10 (TPMs+1): ground {}; sky {}.'.format(ground10,sky10))
+
+print('processing metadata...')
+orderedAnnotation=[metadata[cellID] for cellID in cellIDs]
+orderedColors=[selectedColors[annotation-1] for annotation in orderedAnnotation]
 
 # 3. analyse data
 print('analyzing data...')
@@ -160,7 +177,7 @@ print('analyzing data...')
 # 3.1. run a histogram of expression
 print('\t building a histogram of expression...')
 positiveValues=[]; nonPositiveValues=[]
-for cell in expressionMatrix:
+for cell in log2TPMsPO:
     for value in cell:
         if value > 0:
             positiveValues.append(value)
@@ -180,35 +197,46 @@ matplotlib.pyplot.tight_layout()
 matplotlib.pyplot.savefig('figure.expression.distribution.pdf')
 matplotlib.pyplot.clf()
 
-# 3.2. build histogram of entropy per cell
+# 3.2. build histogram of entropy per gene
 print('\t building a histogram of entropy...')
 entropies=[]
-for cell in expressionMatrix:
-    s=entropyCalculator(cell)
+for gene in numpy.transpose(log2TPMsPO):
+    s=entropyCalculator(gene,ground2,sky2)
     entropies.append(s)
 
 x,y=histogrammer(entropies)
 
 matplotlib.pyplot.plot(x,y,'-',color='black')
-matplotlib.pyplot.xlabel('Entropy (bit)')
+
+# compute entropy of references
+ymax=[1/len(cellIDs) for element in range(len(cellIDs))]
+smax=scipy.stats.entropy(ymax,base=2)
+matplotlib.pyplot.axvline(smax,color='red',ls='--')
+matplotlib.pyplot.axvline(0,color='blue',ls='--')
+
+matplotlib.pyplot.xlabel('Gene entropy (bit)')
 matplotlib.pyplot.ylabel('Probability')
 matplotlib.pyplot.tight_layout()
 matplotlib.pyplot.savefig('figure.entropy.distribution.pdf')
 matplotlib.pyplot.clf()
 
-"""
 
 # 3.3. run PCA and tSNE
 print('\t dimensionality reduction...')
 
-"""
-
 # 3.3.1. PCA
-pca=sklearn.decomposition.PCA(n_components=2)
-pca.fit(expressionMatrix)
-rotated=pca.transform(expressionMatrix)
+pca=sklearn.decomposition.PCA(n_components=2,svd_solver='full')
+pca.fit(log2TPMsPO)
+rotated=pca.transform(log2TPMsPO)
 
-matplotlib.pyplot.scatter(rotated[:,0],rotated[:,1])
+matplotlib.pyplot.scatter(rotated[:,0],rotated[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+for i in range(len(selectedColors)):
+    matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
+
+matplotlib.pyplot.legend()
+matplotlib.pyplot.xlabel('PC1')
+matplotlib.pyplot.ylabel('PC2')
 matplotlib.pyplot.savefig('figures/figure.pca.pdf')
 matplotlib.pyplot.clf()
 
@@ -216,24 +244,15 @@ matplotlib.pyplot.clf()
 
 # 3.3.2. t-SNE
 perplexities=numpy.arange(5,50+5,5)
-learningRates=numpy.arange(10,1000+10,10)
-
-tasks=[]
+learningRates=numpy.arange(100,1000+100,100)
 
 for thePerplexity in perplexities:
     for theLearningRate in learningRates:
-        tasks.append([thePerplexity,theLearningRate])
+        task=[thePerplexity,theLearningRate]
+        tSNERunner(task)
 
 
-# parallel version
-#hydra=multiprocessing.pool.Pool(numberOfThreads)
-#tempo=hydra.map(tSNERunner,tasks)
-
-# single-thread
-
-for task in tasks:
-    tSNERunner(task)
-    sys.exit()
+# need to run with method='exact'
 
 # consider making a simple heatmap with clustering for all genes, then only for the ones DETs between clusters. (remove zeros)
 
