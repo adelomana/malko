@@ -107,9 +107,11 @@ def tSNERunner(task):
     thePerplexity=task[0]
     theLearningRate=task[1]
 
-    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',method='barnes_hut',verbose=True).fit_transform(log2TPMsPO)
+    # method='exact'
 
-    figureName='figures/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
+    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=True).fit_transform(TPMs)
+
+    figureName='figures.TPM.barnes_hut/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
     matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
     for i in range(len(selectedColors)):
         matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
@@ -243,9 +245,10 @@ matplotlib.pyplot.clf()
 """
 
 # 3.3.2. t-SNE
-perplexities=numpy.arange(5,50+5,5)
+perplexities=numpy.arange(5,50+5,5) # 5 to 30 seems the best range.
 learningRates=numpy.arange(100,1000+100,100)
 
+# consider putting it all into a single figure. use pickle to create all the embeddings. then do the plots
 for thePerplexity in perplexities:
     for theLearningRate in learningRates:
         task=[thePerplexity,theLearningRate]
