@@ -2,3 +2,13 @@
 *.pdf
 
 *.txt
+
+matlabwork/tsne.m
+
+matlabwork/d2p.m
+
+matlabwork/tsne_d.m
+
+matlabwork/tsne_p.m
+
+matlabwork/x2p.m
