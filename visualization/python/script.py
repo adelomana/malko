@@ -130,7 +130,7 @@ def tSNERunner(task):
 ###
 
 # 0. user defined variables
-dataFilePath='/Volumes/omics4tb/alomana/projects/malko/data/single.cell.data.for.Serdar.and.Adrian.txt'
+dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
 numberOfThreads=4
 selectedColors=['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
 groupLabels=['State 1','State 2','State 3','State 4']
