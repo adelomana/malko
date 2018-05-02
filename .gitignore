@@ -12,3 +12,13 @@ matlabwork/tsne_d.m
 matlabwork/tsne_p.m
 
 matlabwork/x2p.m
+
+visualization/matlab/tsne.m
+
+visualization/matlab/d2p.m
+
+visualization/matlab/tsne_d.m
+
+visualization/matlab/tsne_p.m
+
+visualization/matlab/x2p.m
