@@ -109,9 +109,9 @@ def tSNERunner(task):
 
     # method='exact'
 
-    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=True).fit_transform(TPMs)
+    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=True).fit_transform(log10TPMsPO)
 
-    figureName='figures.TPM.barnes_hut/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
+    figureName='figures.log10TPMsPO.barnes_hut/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
     matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
     for i in range(len(selectedColors)):
         matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
