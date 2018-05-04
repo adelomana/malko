@@ -31,25 +31,6 @@ def entropyCalculator(v,ground,sky):
     return s
 
 
-def histogrammer(theData):
-
-    '''
-    This function creates a histogram.
-    '''    
-
-    x=[]; y=[]
-    
-    n,bins=numpy.histogram(theData,bins=int(numpy.sqrt(len(theData))))
-
-    halfBin=(bins[1]-bins[0])/2.
-    for bin in bins:
-        center=bin+halfBin
-        x.append(center)
-    x.pop()
-    y=numpy.array(n)
-    y=list(y/float(sum(y)))
-
-    return x,y
 
 def dataReader():
 
@@ -96,34 +77,77 @@ def dataReader():
 
     return expression,metadata,geneNames,cellIDs
 
-def tSNERunner(task):
+def generalAnalyzer(task):
 
     '''
-    This function calls t-SNE and makes a figure.
+    This function directs the main analysis.
     '''
 
-    print('\t\t working with task {}...'.format(task))
+    GOFs=[]
+    for iteration in tsneRuns:
+        
+        # run  tSNEne
+        thePerplexity=task[0]
+        theLearningRate=task[1]
+        tsneRunner(thePerplexity,theLearningRate)
+        # perform clustering
+    
+        #compute goodness of clustering
+    
     
     thePerplexity=task[0]
     theLearningRate=task[1]
 
-    # method='exact'
+    
 
-    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=True).fit_transform(TPMs)
-
-    figureName='figures.TPMsPO.barnes_hut/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
-    matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
-    for i in range(len(selectedColors)):
-        matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
-    matplotlib.pyplot.legend()
-    matplotlib.pyplot.xlabel('tSNE1')
-    matplotlib.pyplot.ylabel('tSNE2')
-    matplotlib.pyplot.tight_layout()
-    matplotlib.pyplot.savefig(figureName)
-    matplotlib.pyplot.clf()
-    print()
+    
 
     return None
+
+def histogrammer(theData):
+
+    '''
+    This function creates a histogram.
+    '''    
+
+    x=[]; y=[]
+    
+    n,bins=numpy.histogram(theData,bins=int(numpy.sqrt(len(theData))))
+
+    halfBin=(bins[1]-bins[0])/2.
+    for bin in bins:
+        center=bin+halfBin
+        x.append(center)
+    x.pop()
+    y=numpy.array(n)
+    y=list(y/float(sum(y)))
+
+    return x,y
+
+
+def tsneRunner(thePerplexity,theLearningRate):
+
+    '''
+    This function runs tSNE.
+    '''
+
+    # method='exact'
+    
+    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=True).fit_transform(TPMs)
+
+    #figureName='figures.TPMsPO.barnes_hut/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
+    #matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+    #for i in range(len(selectedColors)):
+    #    matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
+    #matplotlib.pyplot.legend()
+    #matplotlib.pyplot.xlabel('tSNE1')
+    #matplotlib.pyplot.ylabel('tSNE2')
+    #matplotlib.pyplot.tight_layout()
+    #matplotlib.pyplot.savefig(figureName)
+    #matplotlib.pyplot.clf()
+    #print()
+
+    return embedded
 
 ###
 ### MAIN
@@ -134,6 +158,13 @@ dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt
 numberOfThreads=4
 selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple']
 groupLabels=['State 1','State 2','State 3','State 4']
+
+#perplexities=numpy.arange(10,35+5,5) 
+#learningRates=numpy.arange(100,800+100,100)
+perplexities=numpy.arange(10,20+5,5) 
+learningRates=numpy.arange(100,300+100,100)
+
+tsneRuns=1 # this could be 3
 
 # 1. reading data
 print('reading data...')
@@ -174,86 +205,26 @@ orderedColors=[selectedColors[annotation-1] for annotation in orderedAnnotation]
 # 3. analyse data
 print('analyzing data...')
 
-"""
-
-# 3.1. run a histogram of expression
-print('\t building a histogram of expression...')
-positiveValues=[]; nonPositiveValues=[]
-for cell in log2TPMsPO:
-    for value in cell:
-        if value > 0:
-            positiveValues.append(value)
-        else:
-            nonPositiveValues.append(value)
-
-a=len(positiveValues); b=len(nonPositiveValues); c=a+b
-
-print('\t {} values detected, {} positive, {} non-positive.'.format(c,a/c,b/c))
-
-x,y=histogrammer(positiveValues)
-
-matplotlib.pyplot.plot(x,y,'-',color='black')
-matplotlib.pyplot.xlabel('Relative expression')
-matplotlib.pyplot.ylabel('Probability')
-matplotlib.pyplot.tight_layout()
-matplotlib.pyplot.savefig('figure.expression.distribution.pdf')
-matplotlib.pyplot.clf()
-
-# 3.2. build histogram of entropy per gene
-print('\t building a histogram of entropy...')
-entropies=[]
-for gene in numpy.transpose(log2TPMsPO):
-    s=entropyCalculator(gene,ground2,sky2)
-    entropies.append(s)
-
-x,y=histogrammer(entropies)
-
-matplotlib.pyplot.plot(x,y,'-',color='black')
-
-# compute entropy of references
-ymax=[1/len(cellIDs) for element in range(len(cellIDs))]
-smax=scipy.stats.entropy(ymax,base=2)
-matplotlib.pyplot.axvline(smax,color='red',ls='--')
-matplotlib.pyplot.axvline(0,color='blue',ls='--')
-
-matplotlib.pyplot.xlabel('Gene entropy (bit)')
-matplotlib.pyplot.ylabel('Probability')
-matplotlib.pyplot.tight_layout()
-matplotlib.pyplot.savefig('figure.entropy.distribution.pdf')
-matplotlib.pyplot.clf()
+# 3.0. define the parameters to test
 
 
-# 3.3. run PCA and tSNE
-print('\t dimensionality reduction...')
-
-# 3.3.1. PCA
-pca=sklearn.decomposition.PCA(n_components=2,svd_solver='full')
-pca.fit(log2TPMsPO)
-rotated=pca.transform(log2TPMsPO)
-
-matplotlib.pyplot.scatter(rotated[:,0],rotated[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
-
-for i in range(len(selectedColors)):
-    matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
-
-matplotlib.pyplot.legend()
-matplotlib.pyplot.xlabel('PC1')
-matplotlib.pyplot.ylabel('PC2')
-matplotlib.pyplot.savefig('figures/figure.pca.pdf')
-matplotlib.pyplot.clf()
-
-"""
-
-# 3.3.2. t-SNE
-perplexities=numpy.arange(5,50+5,5) # 5 to 30 seems the best range.
-learningRates=numpy.arange(100,1000+100,100)
-
-# consider putting it all into a single figure. use pickle to create all the embeddings. then do the plots
+tasks=[]; results=[]
 for thePerplexity in perplexities:
     for theLearningRate in learningRates:
         task=[thePerplexity,theLearningRate]
-        tSNERunner(task)
+        tasks.append(task)
 
+print('\t {} tasks defined.'.format(len(tasks)))
+
+# 3.1. sequential calling
+for task in tasks:
+    result=generalAnalyzer(taks)
+    results.append(result)
+    
+# 3.2. parallel calling
+
+# 4. plot the results
+print(results)
 
 # need to run with method='exact'
 
