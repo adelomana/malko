@@ -82,8 +82,9 @@ def generalAnalyzer(task):
     '''
 
     print('\t working with task {}'.format(task))
+
+    overallRanks=[]; overallMethods=[]; overallQualifications=[]
     
-    result=None
     for iteration in range(tsneRuns):
         
         # f.1. run  tSNEne
@@ -92,55 +93,78 @@ def generalAnalyzer(task):
         embedded=tsneRunner(thePerplexity,theLearningRate)
 
         # f.2. perform clustering and goodness of clustering
-        for numberOfClusters in range(2,10):
+        particularRanks=[]; particularMethods=[]; particularQualifications=[]
+        for numberOfClusters in range(3,8+1):
             
             km=sklearn.cluster.KMeans(n_clusters=numberOfClusters, random_state=1).fit(embedded)
             kmLabels=km.labels_
-
             
             gmmLabels=sklearn.mixture.GaussianMixture(n_components=numberOfClusters,covariance_type='full').fit(embedded).predict(embedded)
-    
 
             # f.3. compute goodness of clustering
-            kmCHI=sklearn.metrics.calinski_harabaz_score(embedded,kmLabels)
             kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
-
-            gmmCHI=sklearn.metrics.calinski_harabaz_score(embedded,gmmLabels)
             gmmSS=sklearn.metrics.silhouette_score(embedded,gmmLabels,metric='euclidean')
 
-            print('\t number of clusters: {}'.format(numberOfClusters))
-            print('\t CHI: km {}, gmm {}'.format(kmCHI,gmmCHI))
-            print('\t SS: km {}, gmm {}'.format(kmSS,gmmSS))
+            particularRanks.append(numberOfClusters); particularMethods.append('km'); particularQualifications.append(kmSS)
+            particularRanks.append(numberOfClusters); particularMethods.append('gmm'); particularQualifications.append(gmmSS)
+
+
+        # f.3. selecting best particular partition
+
+        print(particularRanks)
+        print(particularMethods)
+        print(particularQualifications)
             
-            # f.4. plot if that is the case
-            if plotting == True:
+        particularBestQualification=max(particularQualifications)
+        particularBestRank=particularRanks[particularQualifications.index(particularBestQualification)]
+        particularBestMethod=particularMethods[particularQualifications.index(particularBestQualification)]
 
-                figureName='figures/figure.tsne.p{}.lr{}.it{}.nc{}.km.pdf'.format(thePerplexity,theLearningRate,iteration,numberOfClusters)
-                orderedColors=[selectedColors[label] for label in kmLabels]
-                matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+        print(particularBestQualification,particularBestRank,particularBestMethod)
 
-                matplotlib.pyplot.xlabel('tSNE1')
-                matplotlib.pyplot.ylabel('tSNE2')
-                matplotlib.pyplot.tight_layout()
-                matplotlib.pyplot.savefig(figureName)
-                matplotlib.pyplot.clf()
+        overallRanks.append(particularBestRank)
+        overallMethods.append(particularBestMethod)
+        overallQualifications.append(particularBestQualification)
 
-                figureName='figures/figure.tsne.p{}.lr{}.it{}.nc{}.gmm.pdf'.format(thePerplexity,theLearningRate,iteration,numberOfClusters)
-                orderedColors=[selectedColors[label] for label in gmmLabels]
-                matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+    # f.4. selecting best overall partition
+    print(overallRanks)
+    print(overallMethods)
+    print(overallQualifications)
 
-                matplotlib.pyplot.xlabel('tSNE1')
-                matplotlib.pyplot.ylabel('tSNE2')
-                matplotlib.pyplot.tight_layout()
-                matplotlib.pyplot.savefig(figureName)
-                matplotlib.pyplot.clf()
-                
-            print()
+    a=max(overallQualifications)
+    b=overallRanks[overallQualifications.index(a)]
+    c=overallMethods[overallQualifications.index(a)]
 
-    #sys.exit()
+    result=[a,b,c]
+    
     
 
-    
+    """
+    # f.4. plot if that is the case
+    if plotting == True:
+
+        figureName='figures/figure.tsne.p{}.lr{}.it{}.nc{}.km.pdf'.format(thePerplexity,theLearningRate,iteration,numberOfClusters)
+        orderedColors=[selectedColors[label] for label in kmLabels]
+        matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+        matplotlib.pyplot.xlabel('tSNE1')
+        matplotlib.pyplot.ylabel('tSNE2')
+        matplotlib.pyplot.tight_layout()
+        matplotlib.pyplot.savefig(figureName)
+        matplotlib.pyplot.clf()
+
+        figureName='figures/figure.tsne.p{}.lr{}.it{}.nc{}.gmm.pdf'.format(thePerplexity,theLearningRate,iteration,numberOfClusters)
+        orderedColors=[selectedColors[label] for label in gmmLabels]
+        matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+        matplotlib.pyplot.xlabel('tSNE1')
+        matplotlib.pyplot.ylabel('tSNE2')
+        matplotlib.pyplot.tight_layout()
+        matplotlib.pyplot.savefig(figureName)
+        matplotlib.pyplot.clf()
+
+        print()
+
+    """    
 
     return result
 
@@ -193,7 +217,7 @@ groupLabels=['State 1','State 2','State 3','State 4']
 perplexities=numpy.arange(10,20+5,5) 
 learningRates=numpy.arange(100,300+100,100)
 
-tsneRuns=1 # this could be 3
+tsneRuns=5 # this could be 3
 
 plotting=True
 
