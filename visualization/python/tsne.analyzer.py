@@ -1,10 +1,10 @@
 ###
-### This script analyses melanoma single-cell transcriptomes.
+### This script visualizes in an optimal manner melanoma single-cell transcriptomes.
 ###
 
 import sys,numpy
 import scipy,scipy.stats
-import sklearn,sklearn.decomposition,sklearn.manifold
+import sklearn,sklearn.decomposition,sklearn.manifold,sklearn.cluster,sklearn.metrics,sklearn.mixture
 import multiprocessing,multiprocessing.pool
 import matplotlib,matplotlib.pyplot
 
@@ -29,8 +29,6 @@ def entropyCalculator(v,ground,sky):
     s=scipy.stats.entropy(y,base=2)
 
     return s
-
-
 
 def dataReader():
 
@@ -83,26 +81,68 @@ def generalAnalyzer(task):
     This function directs the main analysis.
     '''
 
-    GOFs=[]
-    for iteration in tsneRuns:
+    print('\t working with task {}'.format(task))
+    
+    result=None
+    for iteration in range(tsneRuns):
         
-        # run  tSNEne
+        # f.1. run  tSNEne
         thePerplexity=task[0]
         theLearningRate=task[1]
-        tsneRunner(thePerplexity,theLearningRate)
-        # perform clustering
+        embedded=tsneRunner(thePerplexity,theLearningRate)
+
+        # f.2. perform clustering and goodness of clustering
+        for numberOfClusters in range(2,10):
+            
+            km=sklearn.cluster.KMeans(n_clusters=numberOfClusters, random_state=1).fit(embedded)
+            kmLabels=km.labels_
+
+            
+            gmmLabels=sklearn.mixture.GaussianMixture(n_components=numberOfClusters,covariance_type='full').fit(embedded).predict(embedded)
     
-        #compute goodness of clustering
+
+            # f.3. compute goodness of clustering
+            kmCHI=sklearn.metrics.calinski_harabaz_score(embedded,kmLabels)
+            kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
+
+            gmmCHI=sklearn.metrics.calinski_harabaz_score(embedded,gmmLabels)
+            gmmSS=sklearn.metrics.silhouette_score(embedded,gmmLabels,metric='euclidean')
+
+            print('\t number of clusters: {}'.format(numberOfClusters))
+            print('\t CHI: km {}, gmm {}'.format(kmCHI,gmmCHI))
+            print('\t SS: km {}, gmm {}'.format(kmSS,gmmSS))
+            
+            # f.4. plot if that is the case
+            if plotting == True:
+
+                figureName='figures/figure.tsne.p{}.lr{}.it{}.nc{}.km.pdf'.format(thePerplexity,theLearningRate,iteration,numberOfClusters)
+                orderedColors=[selectedColors[label] for label in kmLabels]
+                matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+                matplotlib.pyplot.xlabel('tSNE1')
+                matplotlib.pyplot.ylabel('tSNE2')
+                matplotlib.pyplot.tight_layout()
+                matplotlib.pyplot.savefig(figureName)
+                matplotlib.pyplot.clf()
+
+                figureName='figures/figure.tsne.p{}.lr{}.it{}.nc{}.gmm.pdf'.format(thePerplexity,theLearningRate,iteration,numberOfClusters)
+                orderedColors=[selectedColors[label] for label in gmmLabels]
+                matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+                matplotlib.pyplot.xlabel('tSNE1')
+                matplotlib.pyplot.ylabel('tSNE2')
+                matplotlib.pyplot.tight_layout()
+                matplotlib.pyplot.savefig(figureName)
+                matplotlib.pyplot.clf()
+                
+            print()
+
+    #sys.exit()
     
-    
-    thePerplexity=task[0]
-    theLearningRate=task[1]
 
     
 
-    
-
-    return None
+    return result
 
 def histogrammer(theData):
 
@@ -133,20 +173,8 @@ def tsneRunner(thePerplexity,theLearningRate):
 
     # method='exact'
     
-    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=True).fit_transform(TPMs)
-
-    #figureName='figures.TPMsPO.barnes_hut/figure.tsne.p{}.lr{}.pdf'.format(thePerplexity,theLearningRate)
-    #matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
-    #for i in range(len(selectedColors)):
-    #    matplotlib.pyplot.scatter([],[],c=selectedColors[i],alpha=0.5,label=groupLabels[i],edgecolors='none')
-    #matplotlib.pyplot.legend()
-    #matplotlib.pyplot.xlabel('tSNE1')
-    #matplotlib.pyplot.ylabel('tSNE2')
-    #matplotlib.pyplot.tight_layout()
-    #matplotlib.pyplot.savefig(figureName)
-    #matplotlib.pyplot.clf()
-    #print()
-
+    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=0).fit_transform(log2TPMsPO)
+    
     return embedded
 
 ###
@@ -156,7 +184,8 @@ def tsneRunner(thePerplexity,theLearningRate):
 # 0. user defined variables
 dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
 numberOfThreads=4
-selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple']
+#selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple']
+selectedColors=['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 groupLabels=['State 1','State 2','State 3','State 4']
 
 #perplexities=numpy.arange(10,35+5,5) 
@@ -166,12 +195,18 @@ learningRates=numpy.arange(100,300+100,100)
 
 tsneRuns=1 # this could be 3
 
+plotting=True
+
 # 1. reading data
 print('reading data...')
 expression,metadata,geneNames,cellIDs=dataReader()
-print('found {} cells with {} transcripts each.'.format(len(cellIDs),len(geneNames)))
+print('\t found {} cells with {} transcripts each.'.format(len(cellIDs),len(geneNames)))
 
 # 2. process data
+print('processing metadata...')
+orderedAnnotation=[metadata[cellID] for cellID in cellIDs]
+orderedColors=[selectedColors[annotation-1] for annotation in orderedAnnotation]
+
 print('processing data...')
 expressionMatrix=[]
 for cellID in cellIDs:
@@ -198,40 +233,27 @@ print('\t TPMs: ground {}; sky {}.'.format(ground,sky))
 print('\t log2 (TPMs+1): ground {}; sky {}.'.format(ground2,sky2))
 print('\t log10 (TPMs+1): ground {}; sky {}.'.format(ground10,sky10))
 
-print('processing metadata...')
-orderedAnnotation=[metadata[cellID] for cellID in cellIDs]
-orderedColors=[selectedColors[annotation-1] for annotation in orderedAnnotation]
-
 # 3. analyse data
 print('analyzing data...')
 
 # 3.0. define the parameters to test
-
-
 tasks=[]; results=[]
 for thePerplexity in perplexities:
     for theLearningRate in learningRates:
         task=[thePerplexity,theLearningRate]
         tasks.append(task)
-
 print('\t {} tasks defined.'.format(len(tasks)))
 
-# 3.1. sequential calling
+# 3.1.a. sequential calling
 for task in tasks:
-    result=generalAnalyzer(taks)
+    result=generalAnalyzer(task)
     results.append(result)
     
-# 3.2. parallel calling
+# 3.1.b. parallel calling
 
-# 4. plot the results
+# 3.2. pickle the results
+
+# 4. plot the results as a heatmap of goodness of fit
 print(results)
 
-# need to run with method='exact'
 
-# consider making a simple heatmap with clustering for all genes, then only for the ones DETs between clusters. (remove zeros)
-
-# define which genes are different between the different clusters, 5 by 5. Then represent a heatmap maybe?
-
-### dist of max, min, mean, averages, number of zeros (droppouts)
-
-    # consider making a simple heatmap with clustering
