@@ -22,3 +22,4 @@ visualization/matlab/tsne_d.m
 visualization/matlab/tsne_p.m
 
 visualization/matlab/x2p.m
+*.pickle
