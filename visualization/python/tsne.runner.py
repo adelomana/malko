@@ -1,4 +1,10 @@
-  
+import numpy
+import matplotlib,matplotlib.pyplot
+
+import library
+
+matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsize':14,'ytick.labelsize':14})
+matplotlib.rcParams['pdf.fonttype']=42
 
 ###
 ### MAIN
@@ -7,17 +13,17 @@
 # 0. user defined variables
 dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
 
-selectedColors=['tab:blue', 'tab:orange', 'tab:green', 'tab:purple', 'tab:red', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
+selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 groupLabels=['State 1','State 2','State 3','State 4']
 
 # 1. reading data
+print('reading data...')
+expression,metadata,geneNames,cellIDs=library.dataReader(dataFilePath)
+print('\t found {} cells with {} transcripts each.'.format(len(cellIDs),len(geneNames)))
+
 print('processing metadata...')
 orderedAnnotation=[metadata[cellID] for cellID in cellIDs]
 orderedColors=[selectedColors[annotation-1] for annotation in orderedAnnotation]
-
-print('reading data...')
-expression,metadata,geneNames,cellIDs=dataReader()
-print('\t found {} cells with {} transcripts each.'.format(len(cellIDs),len(geneNames)))
 
 # 2. process data
 print('processing data...')
@@ -46,8 +52,8 @@ print('analyzing data...')
 
 # 3.0. run tSNE
 thePerplexity=25
-theLearningRate=200 
-embedded=tsneRunner(thePerplexity,theLearningRate)
+theLearningRate=100
+embedded=library.tsneRunner(thePerplexity,theLearningRate,log2TPMsPO)
 
 # 3.2. plott figure
 figureName='figures/figure.tsne.p{}.lr{}.runner.pdf'.format(thePerplexity,theLearningRate)
