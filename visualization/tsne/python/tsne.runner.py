@@ -1,10 +1,66 @@
 import numpy
+import sklearn,sklearn.manifold,sklearn.cluster,sklearn.metrics,sklearn.mixture
 import matplotlib,matplotlib.pyplot
-
-import library
 
 matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsize':14,'ytick.labelsize':14})
 matplotlib.rcParams['pdf.fonttype']=42
+
+def dataReader():
+
+    '''
+    This function reads the expression file.
+    '''
+
+    expression={}
+    metadata={}
+    cellIDs=[]
+    clusterIDs=[]
+
+    with open(dataFilePath, 'r') as f:
+        # work with header file
+        header=f.readline()
+        h=header.split('\t')
+        h[-1]=h[-1].replace('\n','')
+        geneNames=h[2:]
+        # work with body file
+        for line in f:
+            vector=line.split('\t')
+            cellID=vector[0]
+            cellIDs.append(cellID)
+            clusterID=int(vector[1])
+            if clusterID not in clusterIDs:
+                clusterIDs.append(clusterID)
+            e=vector[2:]
+            E=[float(element) for element in e]
+
+            if len(E) != len(geneNames):
+                print('error at reading expression...')
+                sys.exit()
+
+            # filling up variables
+            expression[cellID]={}
+            for i in range(len(E)):
+                if geneNames[i] not in expression[cellID]:
+                    expression[cellID][geneNames[i]]=E[i]
+
+            metadata[cellID]=clusterID
+
+    geneNames.sort()
+    cellIDs.sort()
+
+    return expression,metadata,geneNames,cellIDs
+
+def tsneRunner(thePerplexity,theLearningRate):
+
+    '''
+    This function runs tSNE.
+    '''
+
+    # method='exact'
+    
+    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=0).fit_transform(log2TPMsPO)
+    
+    return embedded
 
 ###
 ### MAIN
@@ -18,7 +74,7 @@ groupLabels=['State 1','State 2','State 3','State 4']
 
 # 1. reading data
 print('reading data...')
-expression,metadata,geneNames,cellIDs=library.dataReader(dataFilePath)
+expression,metadata,geneNames,cellIDs=dataReader()
 print('\t found {} cells with {} transcripts each.'.format(len(cellIDs),len(geneNames)))
 
 print('processing metadata...')
@@ -51,9 +107,9 @@ print('\t log2 (TPMs+1): ground {}; sky {}.'.format(ground2,sky2))
 print('analyzing data...')
 
 # 3.0. run tSNE
-thePerplexity=25
-theLearningRate=100
-embedded=library.tsneRunner(thePerplexity,theLearningRate,log2TPMsPO)
+thePerplexity=22
+theLearningRate=200
+embedded=tsneRunner(thePerplexity,theLearningRate)
 
 # 3.2. plott figure
 figureName='figures/figure.tsne.p{}.lr{}.runner.pdf'.format(thePerplexity,theLearningRate)
