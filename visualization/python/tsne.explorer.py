@@ -71,7 +71,7 @@ def generalAnalyzer(task):
 
         # f.2. perform clustering and goodness of clustering
         particularRanks=[]; particularMethods=[]; particularQualifications=[]
-        for numberOfClusters in range(3,8+1):
+        for numberOfClusters in range(4,4+1):
             
             km=sklearn.cluster.KMeans(n_clusters=numberOfClusters, random_state=1).fit(embedded)
             kmLabels=km.labels_
@@ -96,7 +96,8 @@ def generalAnalyzer(task):
         overallQualifications.append(particularBestQualification)
 
     # f.4. selecting best overall partition
-    a=max(overallQualifications)
+    #a=max(overallQualifications)
+    a=numpy.median(overallQualifications)
     b=overallRanks[overallQualifications.index(a)]
     c=overallMethods[overallQualifications.index(a)]
 
@@ -112,7 +113,7 @@ def tsneRunner(thePerplexity,theLearningRate):
 
     # method='exact'
     
-    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=0,method='exact').fit_transform(log2TPMsPO)
+    embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=0).fit_transform(log2TPMsPO)
     
     return embedded
 
@@ -124,10 +125,12 @@ def tsneRunner(thePerplexity,theLearningRate):
 dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
 numberOfThreads=4
 
-perplexities=numpy.arange(10,35+5,5) 
-learningRates=numpy.arange(100,800+100,100)
+perplexities=numpy.arange(10,50+2,2) 
+learningRates=numpy.arange(100,800+50,50)
 
-tsneRuns=10
+tsneRuns=25
+
+resultsJar='results.10.50.100.800.median25.n4.pickle'
 
 # 1. reading data
 print('reading data...')
@@ -182,7 +185,6 @@ hydra=multiprocessing.pool.Pool(numberOfThreads)
 results=hydra.map(generalAnalyzer,tasks)
 
 # 3.2. pickle the results
-similarityJar='results.exact.pickle'
-f=open(similarityJar,'wb')
+f=open(resultsJar,'wb')
 pickle.dump(results,f)
 f.close()

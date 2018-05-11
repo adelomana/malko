@@ -9,7 +9,8 @@ matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsiz
 matplotlib.rcParams['pdf.fonttype']=42
 
 # 0. user defined variables
-similarityJar='results.pickle'
+similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.100.800.best25.nbest.pickle'
+figureName='tsne.explorer.results.10.50.100.800.best25.nbest.png'
 
 # 1. recover data
 print('recovering data...')
@@ -47,7 +48,6 @@ for perplexity in perplexities:
 M=numpy.array(Mlist); N=numpy.array(Nlist)
 
 # 2.3. build the figure
-figureName='tsne.explorer.results.png'
 figureTitle='Goodness of clustering after tSNE'
 
 matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis')
@@ -57,20 +57,20 @@ cb.ax.tick_params(labelsize=16)
 matplotlib.pyplot.grid(False)
 
 # setting the numbers
-x=-0.1
-y=0.1
+x=-0.2
+y=0.2
 deltax=1.
 deltay=1.
 for i in range(len(N)):
     for j in range(len(N[0])):
         value=str(N[i][j])
-        matplotlib.pyplot.text(x+deltax*j,y+deltay*i,value,fontsize=10,color='black')
+        matplotlib.pyplot.text(x+deltax*j,y+deltay*i,value,fontsize=8,color='white')
 
-matplotlib.pyplot.xticks(range(len(learningRates)),learningRates,size=20,rotation=90)
-matplotlib.pyplot.yticks(range(len(perplexities)),perplexities,size=20)
+matplotlib.pyplot.xticks(range(len(learningRates)),learningRates,size=12,rotation=90)
+matplotlib.pyplot.yticks(range(len(perplexities)),perplexities,size=12)
 
-matplotlib.pyplot.xlabel('Learning rate',fontsize=18)
-matplotlib.pyplot.ylabel('Perplexity',fontsize=18)
+matplotlib.pyplot.xlabel('Learning rate',fontsize=14)
+matplotlib.pyplot.ylabel('Perplexity',fontsize=14)
        
 matplotlib.pyplot.tick_params(axis='x',which='both',bottom='off',top='off')
 matplotlib.pyplot.tick_params(axis='y',which='both',right='off',left='off')
