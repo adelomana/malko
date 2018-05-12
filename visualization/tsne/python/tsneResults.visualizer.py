@@ -10,7 +10,9 @@ matplotlib.rcParams['pdf.fonttype']=42
 
 # 0. user defined variables
 similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.100.800.best25.nbest.pickle'
-figureName='tsne.explorer.results.10.50.100.800.best25.nbest.png'
+figureName='figure.results.10.50.100.800.best25.nbest.png'
+
+scaleLimits=[0.46,0.58]
 
 # 1. recover data
 print('recovering data...')
@@ -47,10 +49,14 @@ for perplexity in perplexities:
     Mlist.append(m); Nlist.append(n)
 M=numpy.array(Mlist); N=numpy.array(Nlist)
 
+print('max value {}'.format(numpy.max(M)))
+print('min value {}'.format(numpy.min(M)))
+print('limits {}'.format(scaleLimits))
+
 # 2.3. build the figure
 figureTitle='Goodness of clustering after tSNE'
 
-matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis')
+matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis',vmin=scaleLimits[0],vmax=scaleLimits[1])
 cb=matplotlib.pyplot.colorbar(orientation='vertical',fraction=0.05) 
 cb.set_label(label='Silhouette coefficient',size=16)
 cb.ax.tick_params(labelsize=16)
