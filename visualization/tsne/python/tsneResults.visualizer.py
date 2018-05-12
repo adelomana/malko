@@ -9,8 +9,8 @@ matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsiz
 matplotlib.rcParams['pdf.fonttype']=42
 
 # 0. user defined variables
-similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.100.800.best25.nbest.pickle'
-figureName='figure.results.10.50.100.800.best25.nbest.png'
+similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.100.800.best25.n4.pickle'
+figureName='figure.results.10.50.100.800.best25.n4.png'
 
 scaleLimits=[0.46,0.58]
 
@@ -57,7 +57,7 @@ print('limits {}'.format(scaleLimits))
 figureTitle='Goodness of clustering after tSNE'
 
 matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis',vmin=scaleLimits[0],vmax=scaleLimits[1])
-cb=matplotlib.pyplot.colorbar(orientation='vertical',fraction=0.05) 
+cb=matplotlib.pyplot.colorbar(orientation='vertical',fraction=0.05,ticks=numpy.arange(scaleLimits[0],scaleLimits[1]+0.2,0.2))
 cb.set_label(label='Silhouette coefficient',size=16)
 cb.ax.tick_params(labelsize=16)
 matplotlib.pyplot.grid(False)
