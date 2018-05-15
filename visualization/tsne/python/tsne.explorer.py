@@ -2,10 +2,12 @@
 ### This script visualizes in an optimal manner melanoma single-cell transcriptomes.
 ###
 
-import sys,numpy,pickle
+import sys,numpy,pickle,time
 import scipy,scipy.stats
 import sklearn,sklearn.manifold,sklearn.cluster,sklearn.metrics,sklearn.mixture
 import multiprocessing,multiprocessing.pool
+
+import matplotlib,matplotlib.pyplot
 
 def dataReader():
 
@@ -71,20 +73,39 @@ def generalAnalyzer(task):
 
         # f.2. perform clustering and goodness of clustering
         particularRanks=[]; particularMethods=[]; particularQualifications=[]
-        for numberOfClusters in range(4,4+1):
+        numberOfClusters=range(minNC,maxNC+1)
+        for nc in numberOfClusters:
             
-            km=sklearn.cluster.KMeans(n_clusters=numberOfClusters, random_state=1).fit(embedded)
+            km=sklearn.cluster.KMeans(n_clusters=nc,random_state=1).fit(embedded)
             kmLabels=km.labels_
             
-            gmmLabels=sklearn.mixture.GaussianMixture(n_components=numberOfClusters,covariance_type='full').fit(embedded).predict(embedded)
+            gmmLabels=sklearn.mixture.GaussianMixture(n_components=nc,covariance_type='full').fit(embedded).predict(embedded)
 
             # f.3. compute goodness of clustering
             kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
             gmmSS=sklearn.metrics.silhouette_score(embedded,gmmLabels,metric='euclidean')
 
-            particularRanks.append(numberOfClusters); particularMethods.append('km'); particularQualifications.append(kmSS)
-            particularRanks.append(numberOfClusters); particularMethods.append('gmm'); particularQualifications.append(gmmSS)
+            kmCHI=sklearn.metrics.calinski_harabaz_score(embedded,kmLabels)
+            gmCHI=sklearn.metrics.calinski_harabaz_score(embedded,gmmLabels)
 
+            #particularRanks.append(nc); particularMethods.append('km'); particularQualifications.append(kmSS)
+            #particularRanks.append(nc); particularMethods.append('gmm'); particularQualifications.append(gmmSS)
+
+            particularRanks.append(nc); particularMethods.append('km'); particularQualifications.append(kmCHI)
+            particularRanks.append(nc); particularMethods.append('gmm'); particularQualifications.append(gmCHI)
+
+        #particularCHI=list(numpy.array(particularCHI)/max(particularCHI))
+        #matplotlib.pyplot.plot(range(minNC,maxNC+1),particularSC,'ok',label='SC')
+        #matplotlib.pyplot.plot(range(minNC,maxNC+1),particularCHI,'or',label='CHI')
+        #matplotlib.pyplot.legend()
+        #localName='figures/figure.{}.pdf'.format(time.time())
+        #matplotlib.pyplot.savefig(localName)
+        #matplotlib.pyplot.clf()
+
+        #bestCHI=particularCHI.index(max(particularCHI))
+        #bestSC=particularSC.index(max(particularSC))
+                                        
+        #print('best SC {}; best CHI {}'.format(numberOfClusters[bestSC],numberOfClusters[bestCHI]))
 
         # f.3. selecting best particular partition
         particularBestQualification=max(particularQualifications)
@@ -96,8 +117,8 @@ def generalAnalyzer(task):
         overallQualifications.append(particularBestQualification)
 
     # f.4. selecting best overall partition
-    #a=max(overallQualifications)
-    a=numpy.median(overallQualifications)
+    a=max(overallQualifications)
+    #a=numpy.median(overallQualifications)
     b=overallRanks[overallQualifications.index(a)]
     c=overallMethods[overallQualifications.index(a)]
 
@@ -122,15 +143,13 @@ def tsneRunner(thePerplexity,theLearningRate):
 ###
 
 # 0. user defined variables
-dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
-numberOfThreads=4
-
+dataFilePath='/proj/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
+resultsJar='results.10.50.100.800.bestnc.tsne25runs.pickle'
+numberOfThreads=16
 perplexities=numpy.arange(10,50+2,2) 
-learningRates=numpy.arange(100,800+50,50)
-
+learningRates=numpy.arange(100,800+100,100)
 tsneRuns=25
-
-resultsJar='results.10.50.100.800.median25.n4.pickle'
+minNC=3; maxNC=25
 
 # 1. reading data
 print('reading data...')
@@ -176,13 +195,13 @@ for thePerplexity in perplexities:
 print('\t {} tasks defined.'.format(len(tasks)))
 
 # 3.1.a. sequential calling
-#for task in tasks:
-#    result=generalAnalyzer(task)
-#    results.append(result)
+for task in tasks:
+    result=generalAnalyzer(task)
+    results.append(result)
 
 # 3.1.b. parallel calling
-hydra=multiprocessing.pool.Pool(numberOfThreads)
-results=hydra.map(generalAnalyzer,tasks)
+#hydra=multiprocessing.pool.Pool(numberOfThreads)
+#results=hydra.map(generalAnalyzer,tasks)
 
 # 3.2. pickle the results
 f=open(resultsJar,'wb')

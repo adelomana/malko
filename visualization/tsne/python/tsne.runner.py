@@ -71,6 +71,9 @@ dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt
 
 selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 groupLabels=['State 1','State 2','State 3','State 4']
+thePerplexity=24
+theLearningRate=650
+figureName='figures/figure.tsne.p{}.lr{}.runner.pdf'.format(thePerplexity,theLearningRate)
 
 # 1. reading data
 print('reading data...')
@@ -96,9 +99,7 @@ expressionMatrix=numpy.array(expressionMatrix)
 expressionMatrix=numpy.array(expressionMatrix)
 TPMsPlusOne=10**expressionMatrix
 TPMs=TPMsPlusOne-TPMsPlusOne[0,0]
-
 log2TPMsPO=numpy.log2(TPMs+1)
-
 ground2=numpy.min(log2TPMsPO); sky2=numpy.max(log2TPMsPO)
 
 print('\t log2 (TPMs+1): ground {}; sky {}.'.format(ground2,sky2))
@@ -107,22 +108,16 @@ print('\t log2 (TPMs+1): ground {}; sky {}.'.format(ground2,sky2))
 print('analyzing data...')
 
 # 3.0. run tSNE
-thePerplexity=22
-theLearningRate=200
 embedded=tsneRunner(thePerplexity,theLearningRate)
 
 # 3.2. plott figure
-figureName='figures/figure.tsne.p{}.lr{}.runner.pdf'.format(thePerplexity,theLearningRate)
 orderedColors=[selectedColors[label] for label in kmLabels]
-
 matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
 
 matplotlib.pyplot.xlabel('tSNE1')
 matplotlib.pyplot.ylabel('tSNE2')
 matplotlib.pyplot.tight_layout()
 matplotlib.pyplot.savefig(figureName)
-matplotlib.pyplot.clf()
-
 matplotlib.pyplot.clf()
 
 print('... analysis done.')

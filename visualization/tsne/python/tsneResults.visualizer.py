@@ -9,10 +9,11 @@ matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsiz
 matplotlib.rcParams['pdf.fonttype']=42
 
 # 0. user defined variables
-similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.100.800.best25.n4.pickle'
-figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.results.10.50.100.800.best25.n4.png'
+similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.50.700.best100.n4.A.pickle'
+figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.HR.A.png'
 
 scaleLimits=[0.46,0.58]
+#scaleLimits=[900,1800]
 
 # 1. recover data
 print('recovering data...')
@@ -42,23 +43,29 @@ learningRates=list(SCs[perplexities[0]].keys())
 perplexities.sort(); learningRates.sort()
 
 Mlist=[]; Nlist=[]
+topLoc=[]; bestResult=0
 for perplexity in perplexities:
     m=[]; n=[]
     for learningRate in learningRates:
         m.append(SCs[perplexity][learningRate][0]); n.append(SCs[perplexity][learningRate][1])
+        if SCs[perplexity][learningRate][0] > bestResult:
+            topLoc=[perplexity,learningRate]; bestResult=SCs[perplexity][learningRate][0]
     Mlist.append(m); Nlist.append(n)
 M=numpy.array(Mlist); N=numpy.array(Nlist)
 
 print('max value {}'.format(numpy.max(M)))
 print('min value {}'.format(numpy.min(M)))
 print('limits {}'.format(scaleLimits))
+print('best results parameters {}'.format(topLoc))
 
 # 2.3. build the figure
 figureTitle='Goodness of clustering after tSNE'
 matplotlib.pyplot.imshow(M,interpolation='none',cmap='viridis',vmin=scaleLimits[0],vmax=scaleLimits[1])
 selectedTicks=list(numpy.arange(scaleLimits[0],scaleLimits[1]+0.02,0.02))
+#selectedTicks=list(numpy.arange(scaleLimits[0],scaleLimits[1]+200,200))
 cb=matplotlib.pyplot.colorbar(orientation='vertical',fraction=0.05,ticks=selectedTicks)
 cb.set_label(label='Silhouette coefficient',size=16)
+#cb.set_label(label='Calinski-Harabaz index',size=16)
 cb.ax.tick_params(labelsize=16)
 matplotlib.pyplot.grid(False)
 
@@ -70,10 +77,19 @@ deltay=1.
 for i in range(len(N)):
     for j in range(len(N[0])):
         value=str(N[i][j])
-        matplotlib.pyplot.text(x+deltax*j,y+deltay*i,value,fontsize=8,color='white')
+        #matplotlib.pyplot.text(x+deltax*j,y+deltay*i,value,fontsize=8,color='white')
 
-matplotlib.pyplot.xticks(range(len(learningRates)),learningRates,size=12,rotation=90)
-matplotlib.pyplot.yticks(range(len(perplexities)),perplexities,size=12)
+xtickpositions=[]; xticknames=[]
+ytickpositions=[]; yticknames=[]
+for i in range(len(learningRates)):
+    if i%5 == 0:
+        xtickpositions.append(i); xticknames.append(learningRates[i])
+for i in range(len(perplexities)):
+    if i%5 == 0:
+        ytickpositions.append(i); yticknames.append(perplexities[i])
+
+matplotlib.pyplot.xticks(xtickpositions,xticknames,size=12,rotation=90)
+matplotlib.pyplot.yticks(ytickpositions,yticknames,size=12)
 
 matplotlib.pyplot.xlabel('Learning rate',fontsize=14)
 matplotlib.pyplot.ylabel('Perplexity',fontsize=14)
@@ -87,4 +103,5 @@ matplotlib.pyplot.savefig(figureName)
 
 matplotlib.pyplot.clf()
 
-    
+# 3. completion message
+print('... analysis completed.')
