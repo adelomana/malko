@@ -9,10 +9,7 @@ matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsiz
 matplotlib.rcParams['pdf.fonttype']=42
 
 # 0. user defined variables
-#similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.50.700.best100.n4.A.pickle'
-#figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.HR.A.png'
-
-similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.50.50.700.best100.n4.A.pickle'
+similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.30.100.1000.bestnc.tsne25runs.chi.pickle'
 figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.png'
 
 #scaleLimits=[0.50,0.61]

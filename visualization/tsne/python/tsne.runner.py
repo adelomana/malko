@@ -69,14 +69,14 @@ def tsneRunner(thePerplexity,theLearningRate):
 # 0. user defined variables
 dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
 
-selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
-groupLabels=['State 1','State 2','State 3','State 4']
-thePerplexity=31
-theLearningRate=50
+#selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
+#groupLabels=['State 1','State 2','State 3','State 4']
+thePerplexity=16
+theLearningRate=950
 trials=100
-minNC=3; maxNC=25
+minNC=3; maxNC=20
 numberOfClusters=numberOfClusters=range(minNC,maxNC+1)
-figureName='figures/figure.tsne.p{}.lr{}.runner.pdf'.format(thePerplexity,theLearningRate)
+figureName='figures/figure.tsne.p{}.lr{}.runner.chi.pdf'.format(thePerplexity,theLearningRate)
 
 # 1. reading data
 print('reading data...')
@@ -85,7 +85,8 @@ print('\t found {} cells with {} transcripts each.'.format(len(cellIDs),len(gene
 
 print('processing metadata...')
 orderedAnnotation=[metadata[cellID] for cellID in cellIDs]
-orderedColors=[selectedColors[annotation-1] for annotation in orderedAnnotation]
+cm=matplotlib.cm.get_cmap('tab20')
+orderedColors=[cm.colors[annotation-1] for annotation in orderedAnnotation]
 
 # 2. process data
 print('processing data...')
@@ -126,10 +127,11 @@ for trial in range(trials):
             kmLabels=km.labels_
             
             # f.3. compute goodness of clustering
-            kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
+            #kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
+            kmCHI=numpy.log10(sklearn.metrics.calinski_harabaz_score(embedded,kmLabels))
 
-            if kmSS > localGF:
-                localGF=kmSS
+            if kmCHI > localGF:
+                localGF=kmCHI
                 localNC=nc
                 localLabels=kmLabels
                 print('\t\t nc {} is best; GF {}'.format(nc,localGF))
@@ -141,10 +143,10 @@ for trial in range(trials):
         print('\t\t\t improved GF {}'.format(globalGF))
 
         # 3.2. plott figure
-        orderedColors=[selectedColors[label] for label in finalLabels]
+        orderedColors=[cm.colors[label-1] for label in finalLabels]
         matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
 
-        matplotlib.pyplot.title('SC = {}'.format(globalGF))
+        matplotlib.pyplot.title('CHI = {}'.format(globalGF))
 
         matplotlib.pyplot.xlabel('tSNE1')
         matplotlib.pyplot.ylabel('tSNE2')
