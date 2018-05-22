@@ -136,7 +136,7 @@ for trial in range(trials):
                 localLabels=kmLabels
                 print('\t\t nc {} is best; GF {}'.format(nc,localGF))
                 
-    if localGF > globalGF:
+    if localGF > globalGF and localGF < 3.8:
         globalGF=localGF
         finalLabels=localLabels
 

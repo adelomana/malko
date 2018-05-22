@@ -12,9 +12,8 @@ matplotlib.rcParams['pdf.fonttype']=42
 similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.30.100.1000.bestnc.tsne25runs.chi.pickle'
 figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.png'
 
-#scaleLimits=[0.50,0.61]
-scaleLimits=[3,5.1]
-scaleIncrement=0.2
+scaleLimits=[3,4]
+scaleIncrement=0.1
 theMetricLabel='log$_{10}$ Calinski-Harabaz index'
 
 # 1. recover data
@@ -56,6 +55,7 @@ for perplexity in perplexities:
 M=numpy.array(Mlist); N=numpy.array(Nlist)
 M=numpy.log10(M)
 
+print(M)
 print('max value {}'.format(numpy.max(M)))
 print('min value {}'.format(numpy.min(M)))
 print('limits {}'.format(scaleLimits))

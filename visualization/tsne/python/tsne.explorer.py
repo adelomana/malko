@@ -62,7 +62,7 @@ def generalAnalyzer(task):
 
     print('\t working with task {}'.format(task))
 
-    overallRanks=[]; overallMethods=[]; overallQualifications=[]
+    overallRanks=[]; overallMethods=[]; overallQualifications=[]; overallEmbedding=[]
     
     for iteration in range(tsneRuns):
         
@@ -88,24 +88,12 @@ def generalAnalyzer(task):
             kmCHI=sklearn.metrics.calinski_harabaz_score(embedded,kmLabels)
             gmCHI=sklearn.metrics.calinski_harabaz_score(embedded,gmmLabels)
 
+            # CHI and SS are not face-value comparable
             #particularRanks.append(nc); particularMethods.append('km'); particularQualifications.append(kmSS)
             #particularRanks.append(nc); particularMethods.append('gmm'); particularQualifications.append(gmmSS)
 
             particularRanks.append(nc); particularMethods.append('km'); particularQualifications.append(kmCHI)
             particularRanks.append(nc); particularMethods.append('gmm'); particularQualifications.append(gmCHI)
-
-        #particularCHI=list(numpy.array(particularCHI)/max(particularCHI))
-        #matplotlib.pyplot.plot(range(minNC,maxNC+1),particularSC,'ok',label='SC')
-        #matplotlib.pyplot.plot(range(minNC,maxNC+1),particularCHI,'or',label='CHI')
-        #matplotlib.pyplot.legend()
-        #localName='figures/figure.{}.pdf'.format(time.time())
-        #matplotlib.pyplot.savefig(localName)
-        #matplotlib.pyplot.clf()
-
-        #bestCHI=particularCHI.index(max(particularCHI))
-        #bestSC=particularSC.index(max(particularSC))
-                                        
-        #print('best SC {}; best CHI {}'.format(numberOfClusters[bestSC],numberOfClusters[bestCHI]))
 
         # f.3. selecting best particular partition
         particularBestQualification=max(particularQualifications)
@@ -115,14 +103,16 @@ def generalAnalyzer(task):
         overallRanks.append(particularBestRank)
         overallMethods.append(particularBestMethod)
         overallQualifications.append(particularBestQualification)
+        overallEmbedding.append(embedded)
 
     # f.4. selecting best overall partition
     a=max(overallQualifications)
     #a=numpy.median(overallQualifications)
     b=overallRanks[overallQualifications.index(a)]
     c=overallMethods[overallQualifications.index(a)]
+    d=overallEmbedding[overallQualifications.index(a)]
 
-    result=[task,a,b,c]
+    result=[task,a,b,c,d]
     
     return result
 
@@ -133,7 +123,6 @@ def tsneRunner(thePerplexity,theLearningRate):
     '''
 
     # method='exact'
-    
     embedded=sklearn.manifold.TSNE(perplexity=thePerplexity,learning_rate=theLearningRate,n_components=2,n_iter=10000,n_iter_without_progress=1000,init='pca',verbose=0).fit_transform(log2TPMsPO)
     
     return embedded
@@ -143,13 +132,14 @@ def tsneRunner(thePerplexity,theLearningRate):
 ###
 
 # 0. user defined variables
-dataFilePath='/proj/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
-resultsJar='results.10.50.100.800.bestnc.tsne25runs.pickle'
-numberOfThreads=16
-perplexities=numpy.arange(10,50+2,2) 
-learningRates=numpy.arange(100,800+100,100)
-tsneRuns=25
-minNC=3; maxNC=25
+dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
+resultsJar='/proj/omics4tb/alomana/projects/mscni/results/results.chi.iter5.2018.05.22.pickle'
+
+numberOfThreads=40
+perplexities=numpy.arange(10,30+1,1) 
+learningRates=numpy.arange(100,1000+50,50)
+tsneRuns=5
+minNC=3; maxNC=50
 
 # 1. reading data
 print('reading data...')
@@ -195,13 +185,13 @@ for thePerplexity in perplexities:
 print('\t {} tasks defined.'.format(len(tasks)))
 
 # 3.1.a. sequential calling
-for task in tasks:
-    result=generalAnalyzer(task)
-    results.append(result)
+#for task in tasks:
+#    result=generalAnalyzer(task)
+#    results.append(result)
 
 # 3.1.b. parallel calling
-#hydra=multiprocessing.pool.Pool(numberOfThreads)
-#results=hydra.map(generalAnalyzer,tasks)
+hydra=multiprocessing.pool.Pool(numberOfThreads)
+results=hydra.map(generalAnalyzer,tasks)
 
 # 3.2. pickle the results
 f=open(resultsJar,'wb')
