@@ -71,8 +71,11 @@ dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt
 
 selectedColors=['tab:blue', 'tab:green', 'tab:red', 'tab:purple', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 groupLabels=['State 1','State 2','State 3','State 4']
-thePerplexity=24
-theLearningRate=650
+thePerplexity=31
+theLearningRate=50
+trials=100
+minNC=3; maxNC=25
+numberOfClusters=numberOfClusters=range(minNC,maxNC+1)
 figureName='figures/figure.tsne.p{}.lr{}.runner.pdf'.format(thePerplexity,theLearningRate)
 
 # 1. reading data
@@ -108,17 +111,46 @@ print('\t log2 (TPMs+1): ground {}; sky {}.'.format(ground2,sky2))
 print('analyzing data...')
 
 # 3.0. run tSNE
-embedded=tsneRunner(thePerplexity,theLearningRate)
+globalGF=0; globalLabels=[]
 
-# 3.2. plott figure
-orderedColors=[selectedColors[label] for label in kmLabels]
-matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+for trial in range(trials):
+    print('\t working on trial {}'.format(trial))
+    
+    embedded=tsneRunner(thePerplexity,theLearningRate)
 
-matplotlib.pyplot.xlabel('tSNE1')
-matplotlib.pyplot.ylabel('tSNE2')
-matplotlib.pyplot.tight_layout()
-matplotlib.pyplot.savefig(figureName)
-matplotlib.pyplot.clf()
+    localNC=0; localGF=0; locaLabels=None
+
+    for nc in numberOfClusters:
+            
+            km=sklearn.cluster.KMeans(n_clusters=nc,random_state=1).fit(embedded)
+            kmLabels=km.labels_
+            
+            # f.3. compute goodness of clustering
+            kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
+
+            if kmSS > localGF:
+                localGF=kmSS
+                localNC=nc
+                localLabels=kmLabels
+                print('\t\t nc {} is best; GF {}'.format(nc,localGF))
+                
+    if localGF > globalGF:
+        globalGF=localGF
+        finalLabels=localLabels
+
+        print('\t\t\t improved GF {}'.format(globalGF))
+
+        # 3.2. plott figure
+        orderedColors=[selectedColors[label] for label in finalLabels]
+        matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+        matplotlib.pyplot.title('SC = {}'.format(globalGF))
+
+        matplotlib.pyplot.xlabel('tSNE1')
+        matplotlib.pyplot.ylabel('tSNE2')
+        matplotlib.pyplot.tight_layout()
+        matplotlib.pyplot.savefig(figureName)
+        matplotlib.pyplot.clf()
 
 print('... analysis done.')
 
