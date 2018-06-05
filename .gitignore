@@ -28,3 +28,4 @@ visualization/tsne/matlab/d2p.m
 visualization/tsne/matlab/tsne_d.m
 visualization/tsne/matlab/tsne_p.m
 visualization/tsne/matlab/x2p.m
+visualization/tsne/matlab/tsne.m

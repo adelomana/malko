@@ -9,11 +9,11 @@ matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsiz
 matplotlib.rcParams['pdf.fonttype']=42
 
 # 0. user defined variables
-similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.10.30.100.1000.bestnc.tsne25runs.chi.pickle'
-figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.png'
+similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.chi.iter100.2018.06.04.pickle'
+figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.chi100.png'
 
-scaleLimits=[3,4]
-scaleIncrement=0.1
+scaleLimits=[3,5.4]
+scaleIncrement=0.2
 theMetricLabel='log$_{10}$ Calinski-Harabaz index'
 
 # 1. recover data
@@ -22,21 +22,24 @@ f=open(similarityJar,'rb')
 results=pickle.load(f)
 f.close()
 
-# 2. build figure
-print('building figure...')
+# 2. build heatmap figure
+print('building heatmapfigure...')
 
 # 2.1. recover parameter explored
-SCs={}
+SCs={};embeddingBox={}
 
 for result in results:
     perplexity=result[0][0]
     learningRate=result[0][1]
     SC=result[1]
     nc=result[2]
+    embedding=result[3]
 
     if perplexity not in SCs:
         SCs[perplexity]={}
     SCs[perplexity][learningRate]=[SC,nc]
+
+    embeddingBox[SC]=[embedding,perplexity,learningRate,nc]
 
 # 2.2. build a matrix of SCs
 perplexities=list(SCs.keys())
@@ -55,11 +58,11 @@ for perplexity in perplexities:
 M=numpy.array(Mlist); N=numpy.array(Nlist)
 M=numpy.log10(M)
 
-print(M)
-print('max value {}'.format(numpy.max(M)))
-print('min value {}'.format(numpy.min(M)))
-print('limits {}'.format(scaleLimits))
-print('best results parameters {}'.format(topLoc))
+#print(M)
+print('\t max value {}'.format(numpy.max(M)))
+print('\t min value {}'.format(numpy.min(M)))
+print('\t limits {}'.format(scaleLimits))
+print('\t best results parameters {}'.format(topLoc))
 
 # 2.3. build the figure
 figureTitle='Goodness of clustering after tSNE'
@@ -70,6 +73,15 @@ cb.set_label(label=theMetricLabel,size=16)
 cb.ax.tick_params(labelsize=16)
 matplotlib.pyplot.grid(False)
 
+# adding nc
+x=-0.2
+y=0.2
+deltax=1.
+deltay=1.
+for i in range(len(N)):
+    for j in range(len(N[0])):
+        value=str(N[i][j])
+        matplotlib.pyplot.text(x+deltax*j,y+deltay*i,value,fontsize=8,color='black')
 
 xtickpositions=[]; xticknames=[]
 ytickpositions=[]; yticknames=[]
@@ -94,42 +106,60 @@ matplotlib.pyplot.tight_layout()
 matplotlib.pyplot.savefig(figureName)
 matplotlib.pyplot.clf()
 
-# 2.4. build a figure for nc
-lowNC=numpy.min(N); highNC=numpy.max(N)
+# 3. running embeddings
+print('building embedding figures...')
+sortedFitness=list(embeddingBox.keys())
+sortedFitness.sort(reverse=True)
 
-figureTitle='Optimal nc'
-matplotlib.pyplot.imshow(N,interpolation='none',cmap='viridis',vmin=lowNC,vmax=highNC)
-selectedTicks=list(numpy.arange(lowNC,highNC+1,1))
-cb=matplotlib.pyplot.colorbar(orientation='vertical',fraction=0.05,ticks=selectedTicks)
-cb.set_label(label='nc',size=16)
-cb.ax.tick_params(labelsize=16)
-matplotlib.pyplot.grid(False)
+for i in range(len(sortedFitness[:20])):
 
-# setting the numbers
-x=-0.2
-y=0.2
-deltax=1.
-deltay=1.
-for i in range(len(N)):
-    for j in range(len(N[0])):
-        value=str(N[i][j])
-        matplotlib.pyplot.text(x+deltax*j,y+deltay*i,value,fontsize=8,color='black')
+    # build figure here. this needs to go to a function.
+    figureName='figure.visual.{}.pdf'.format(i)
+    embedded=embeddingBox[sortedFitness[i]][0]
 
+    localNC=0; localGF=0; locaLabels=None
 
-matplotlib.pyplot.xticks(xtickpositions,xticknames,size=12,rotation=90)
-matplotlib.pyplot.yticks(ytickpositions,yticknames,size=12)
+    for nc in numberOfClusters:
+            
+            km=sklearn.cluster.KMeans(n_clusters=nc,random_state=1).fit(embedded)
+            kmLabels=km.labels_
+            
+            # f.3. compute goodness of clustering
+            #kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
+            kmCHI=numpy.log10(sklearn.metrics.calinski_harabaz_score(embedded,kmLabels))
 
-matplotlib.pyplot.xlabel('Learning rate',fontsize=14)
-matplotlib.pyplot.ylabel('Perplexity',fontsize=14)
-       
-matplotlib.pyplot.tick_params(axis='x',which='both',bottom='off',top='off')
-matplotlib.pyplot.tick_params(axis='y',which='both',right='off',left='off')
-matplotlib.pyplot.axes().set_aspect('equal')
-matplotlib.pyplot.title(figureTitle,fontsize=18)
-matplotlib.pyplot.tight_layout()
-matplotlib.pyplot.savefig('figure.nc.chi.png')
+            if kmCHI > localGF:
+                localGF=kmCHI
+                localNC=nc
+                localLabels=kmLabels
+                print('\t\t nc {} is best; GF {}'.format(nc,localGF))
+                
+    if localGF > globalGF and localGF < 3.8:
+        globalGF=localGF
+        finalLabels=localLabels
 
-matplotlib.pyplot.clf()
+        print('\t\t\t improved GF {}'.format(globalGF))
 
-# 3. completion message
+        # 3.2. plott figure
+        orderedColors=[cm.colors[label-1] for label in finalLabels]
+        matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+        matplotlib.pyplot.title('CHI = {}'.format(globalGF))
+
+        matplotlib.pyplot.xlabel('tSNE1')
+        matplotlib.pyplot.ylabel('tSNE2')
+        matplotlib.pyplot.tight_layout()
+        matplotlib.pyplot.savefig(figureName)
+        matplotlib.pyplot.clf()
+    matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
+
+        matplotlib.pyplot.title('CHI = {}'.format(globalGF))
+
+        matplotlib.pyplot.xlabel('tSNE1')
+        matplotlib.pyplot.ylabel('tSNE2')
+        matplotlib.pyplot.tight_layout()
+        matplotlib.pyplot.savefig(figureName)
+        matplotlib.pyplot.clf()
+
+# 4. last message
 print('... analysis completed.')

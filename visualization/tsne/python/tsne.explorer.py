@@ -76,7 +76,7 @@ def generalAnalyzer(task):
         numberOfClusters=range(minNC,maxNC+1)
         for nc in numberOfClusters:
             
-            km=sklearn.cluster.KMeans(n_clusters=nc,random_state=1).fit(embedded)
+            km=sklearn.cluster.KMeans(n_clusters=nc,random_state=1,n_jobs=1,algorithm='auto').fit(embedded)
             kmLabels=km.labels_
             
             gmmLabels=sklearn.mixture.GaussianMixture(n_components=nc,covariance_type='full').fit(embedded).predict(embedded)
@@ -132,13 +132,13 @@ def tsneRunner(thePerplexity,theLearningRate):
 ###
 
 # 0. user defined variables
-dataFilePath='/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
-resultsJar='/proj/omics4tb/alomana/projects/mscni/results/results.chi.iter5.2018.05.22.pickle'
+dataFilePath='/proj/omics4tb/alomana/projects/mscni/data/single.cell.data.txt'
+resultsJar='/proj/omics4tb/alomana/projects/mscni/results/results.chi.iter100.2018.06.04.pickle'
 
 numberOfThreads=40
 perplexities=numpy.arange(10,30+1,1) 
 learningRates=numpy.arange(100,1000+50,50)
-tsneRuns=5
+tsneRuns=100
 minNC=3; maxNC=50
 
 # 1. reading data

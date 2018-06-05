@@ -13,8 +13,8 @@ E=A(2:end,2:end);
 labels=A(2:end,1);
 
 % 2. analysis
-Y = tsne(E);
+[Y,loss] = tsne(E,'Algorithm','exact');
 
 % 3. plot figure
-gscatter(Y(:,1),Y(:,2),labels);
-print(figureFile,'-dpdf');
+% gscatter(Y(:,1),Y(:,2),labels);
+% print(figureFile,'-dpdf');
