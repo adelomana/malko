@@ -79,7 +79,7 @@ def generalAnalyzer(task):
             km=sklearn.cluster.KMeans(n_clusters=nc,random_state=1,n_jobs=1,algorithm='auto').fit(embedded)
             kmLabels=km.labels_
             
-            gmmLabels=sklearn.mixture.GaussianMixture(n_components=nc,covariance_type='full').fit(embedded).predict(embedded)
+            # poor results in the case of CHI; remove if for SC, km is always better # gmmLabels=sklearn.mixture.GaussianMixture(n_components=nc,covariance_type='full').fit(embedded).predict(embedded)
 
             # f.3. compute goodness of clustering
             kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
@@ -107,7 +107,6 @@ def generalAnalyzer(task):
 
     # f.4. selecting best overall partition
     a=max(overallQualifications)
-    #a=numpy.median(overallQualifications)
     b=overallRanks[overallQualifications.index(a)]
     c=overallMethods[overallQualifications.index(a)]
     d=overallEmbedding[overallQualifications.index(a)]
