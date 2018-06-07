@@ -3,7 +3,7 @@
 ###
 
 import sys,numpy,pickle,seaborn,pandas
-import sklearn,sklearn.cluster
+import sklearn,sklearn.cluster,sklearn.mixture
 import matplotlib,matplotlib.pyplot
 
 matplotlib.rcParams.update({'font.size':18,'font.family':'Arial','xtick.labelsize':14,'ytick.labelsize':14})
@@ -18,28 +18,41 @@ def embeddedGrapher():
 
     print('\t plotting figure {}/{}...'.format(i+1,len(sortedFitness)))
 
+    figureName=embeddingsFigureRootTag+'.{}.pdf'.format(str(i).zfill(5))
+
     embedded=embeddingBox[sortedFitness[i]][0]
     figurePerplexity=embeddingBox[sortedFitness[i]][1]
     figureLearningRate=embeddingBox[sortedFitness[i]][2]
     figureNC=embeddingBox[sortedFitness[i]][3]
 
     # f.1. clustering
-    km=sklearn.cluster.KMeans(n_clusters=figureNC,random_state=1,algorithm='auto').fit(embedded)
-    kmLabels=km.labels_
-    kmCHI=numpy.log10(sklearn.metrics.calinski_harabaz_score(embedded,kmLabels))
+    km=sklearn.cluster.KMeans(n_clusters=figureNC,random_state=1,algorithm='auto').fit(embedded); kmLabels=km.labels_
+    gmmLabels=sklearn.mixture.GaussianMixture(n_components=figureNC,covariance_type='full').fit(embedded).predict(embedded)
 
-    figureGF=kmCHI
-    figureLabels=kmLabels
-                
+    # f.2. quantify goodness of fit
+    #kmCHI=numpy.log10(sklearn.metrics.calinski_harabaz_score(embedded,kmLabels))
+    #figureGF=kmCHI
+    #figureLabels=kmLabels
+
+    kmSS=sklearn.metrics.silhouette_score(embedded,kmLabels,metric='euclidean')
+    gmmSS=sklearn.metrics.silhouette_score(embedded,gmmLabels,metric='euclidean')
+    if kmSS > gmmSS:
+        figureGF=kmSS
+        figureLabels=kmLabels
+    else:
+        figureGF=gmmSS
+        figureLabels=gmmLabels
+                    
     # f.2. plot figure
-    figureName='figures/figure.visual.{}.pdf'.format(str(i).zfill(5))
     cm=matplotlib.cm.get_cmap('tab20')
     colors50=list(cm.colors)+list(cm.colors)+list(cm.colors)[:10]
     orderedColors=[colors50[label-1] for label in figureLabels]
 
     matplotlib.pyplot.scatter(embedded[:,0],embedded[:,1],c=orderedColors,alpha=0.5,edgecolors='none')
 
-    matplotlib.pyplot.title('CHI = {:0.3f}; nc = {}; P = {}; LR = {}'.format(figureGF,figureNC,figurePerplexity,figureLearningRate))
+    #matplotlib.pyplot.title('CHI = {:0.3f}; nc = {}; P = {}; LR = {}'.format(figureGF,figureNC,figurePerplexity,figureLearningRate))
+    matplotlib.pyplot.title('SS = {:0.3f}; nc = {}; P = {}; LR = {}'.format(figureGF,figureNC,figurePerplexity,figureLearningRate))
+    
     matplotlib.pyplot.xlabel('tSNE1')
     matplotlib.pyplot.ylabel('tSNE2')
     matplotlib.pyplot.tight_layout()
@@ -49,12 +62,22 @@ def embeddedGrapher():
     return None
 
 # 0. user defined variables
-similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.chi.iter100.2018.06.04.850.pickle'
-figureName='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.chi100.850.png'
+similarityJar='/Volumes/omics4tb/alomana/projects/mscni/results/results.SC.iter.100.2018.06.06.pickle'
 
-scaleLimits=[3,3.4]
+figureFileHeatmap='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.sc.png'
+figureStripPlot='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.fitness.distribution.pdf'
+embeddingsFigureRootTag='/Volumes/omics4tb/alomana/projects/mscni/results/figures/figure.visualization.sc'
+
+numberOfFigures2Print=10
+
+scaleLimits=[3,3.4] 
 scaleIncrement=0.1
 theMetricLabel='log$_{10}$ Calinski-Harabaz index'
+
+scaleLimits=[0.5,0.6] 
+scaleIncrement=0.025
+theMetricLabel='Silhouette Coefficient'
+
 minNC=3; maxNC=50
 
 # 1. recover data
@@ -75,7 +98,7 @@ for result in results:
     SC=result[1]
     nc=result[2]
     method=result[3]
-    print(method)
+    print(method,SC)
     embedding=result[4]
 
     # fill SC
@@ -107,9 +130,9 @@ for perplexity in perplexities:
             topLoc=[perplexity,learningRate]; bestResult=SCs[perplexity][learningRate][0]
     Mlist.append(m); Nlist.append(n)
 M=numpy.array(Mlist); N=numpy.array(Nlist)
-M=numpy.log10(M)
 
-#print(M)
+#M=numpy.log10(M) # log10 required for CHI, not for SC
+
 print('\t max value {}'.format(numpy.max(M)))
 print('\t min value {}'.format(numpy.min(M)))
 print('\t limits {}'.format(scaleLimits))
@@ -154,7 +177,7 @@ matplotlib.pyplot.tick_params(axis='y',which='both',right='off',left='off')
 matplotlib.pyplot.axes().set_aspect('equal')
 matplotlib.pyplot.title(figureTitle,fontsize=18)
 matplotlib.pyplot.tight_layout()
-matplotlib.pyplot.savefig(figureName)
+matplotlib.pyplot.savefig(figureFileHeatmap)
 matplotlib.pyplot.clf()
 
 # 3. running embeddings
@@ -162,8 +185,8 @@ print('building embedding figures...')
 sortedFitness=list(embeddingBox.keys())
 sortedFitness.sort(reverse=True)
 
-#for i in range(len(sortedFitness[:25])):
-#    embeddedGrapher()
+for i in range(len(sortedFitness[:numberOfFigures2Print])):
+    embeddedGrapher()
 
 # 4. plot average fitness per nc
 
@@ -179,26 +202,29 @@ for nc in numberOfClusters:
 for nc in ncDist.keys():
     for value in ncDist[nc]:
         boxPlotPositions.append(nc)
-        fitnessValues.append(numpy.log10(value))
-# adding extra values
-boxPlotPositions.append(5)
-fitnessValues.append(None)
+        #fitnessValues.append(numpy.log10(value)) # for CHI
+        fitnessValues.append(value)
 
 fitnessViolin=list(zip(boxPlotPositions,fitnessValues))
 dfViolin=pandas.DataFrame(data=fitnessViolin,columns=['NC','Fitness'])
 
 # 4.2 make figure
-figureFile='figure.fitness.distribution.pdf'
-#ax=seaborn.violinplot(x='NC',y='Fitness',data=dfViolin)
 ax=seaborn.stripplot(x='NC',y='Fitness',data=dfViolin,jitter=True)
 
-matplotlib.pyplot.ylim([3,3.4])
-shownPositions=[3,5,7,10,13,20,30,40,50]
+matplotlib.pyplot.ylim(scaleLimits)
+
+#shownPositions=[3,5,7,10,13,20,30,40,50] # for CHI
+
+shownPositions=[3,4,5,6,7]        # for SC
+matplotlib.pyplot.xlim([-1,5])     # for SC
+matplotlib.pyplot.ylim([0.5,0.61]) # for SC
+
+
 locations=list(numpy.array(shownPositions)-3)
 matplotlib.pyplot.xticks(locations,shownPositions)
 matplotlib.pyplot.grid(True,alpha=0.5,ls=':')
 matplotlib.pyplot.tight_layout()
-matplotlib.pyplot.savefig(figureFile)
+matplotlib.pyplot.savefig(figureStripPlot)
 matplotlib.pyplot.clf()
 
 # 4. last message
