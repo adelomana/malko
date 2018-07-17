@@ -1,4 +1,5 @@
 
+#  SCENIC Set-up -------------------------------------------------------
 
 # 0.1. SCENIC dependencies
 source("https://bioconductor.org/biocLite.R")
@@ -24,7 +25,7 @@ install.packages('Rcurl')
 install.packages('XML')
 
 # 0.2. Install SCENIC
-setwd("/Users/alomana/Desktop/")
+setwd("/Volumes/omics4tb/alomana/projects/mscni/src/scenic/")
 
 # install.packages("devtools")
 devtools::install_github("aertslab/SCENIC")
@@ -50,57 +51,31 @@ for(featherURL in dbFiles)
 
 # SCENIC Analysis ---------------------------------------------------------
 
-# Suppress loading messages when building the HTML
-suppressPackageStartupMessages({
-  library(SCENIC)
-  library(AUCell)
-  library(RcisTarget)
-  library(SingleCellExperiment)
-})
-
-# To build a personalized report, update this working directory:
-install.packages("knitr")
-knitr::opts_knit$set(root.dir = 'SCENIC_MouseBrain')
-
-# Create directory to save files generated during run
-dir.create("SCENIC_MouseBrain")
-setwd("SCENIC_MouseBrain") # Or `knitr::opts_knit$set(root.dir = 'example_results/SCENIC_MouseBrain')` in the first chunk if running a notebook
-
 # Load single-cell dataset
+scData=read.table("/Volumes/omics4tb/alomana/projects/mscni/data/testing.txt",sep="\t")
 
+dataLength=dim(scData)[1]
+dataWidth=dim(scData)[2]
 
-source("https://bioconductor.org/biocLite.R")
-biocLite(c("data.table"))
-library(data.table)
+geneNames=as.vector(unname(unlist(scData[1,4:dataWidth])))
+cellNames=as.vector(unname(unlist(scData[2:dataLength,1])))
+exprMatrix=as.matrix(scData[2:dataLength,4:dataWidth])
 
-source("https://bioconductor.org/biocLite.R")
-biocLite(c("data.table"))
-library(data.table)
-setwd("/Users/MattWall/Desktop/network_package/data/")
-scData <- fread("malignant.8kgenes.data.csv", sep=",")
-geneNames <- unname(unlist(scData[,1, with=FALSE]))
-exprMatrix <- as.matrix(scData[,-1, with=FALSE])
-rm(scData)
 dim(exprMatrix)
-rownames(exprMatrix) <- geneNames
-exprMatrix[1:5,1:4]
+length(cellNames)
+length(geneNames)
 
-exprMatrix <- exprMatrix[unique(rownames(exprMatrix)),] # Remove duplicated rows
+rownames(exprMatrix)=cellNames
+colnames(exprMatrix)=geneNames
+
 dim(exprMatrix)
 
-# Label cell types
-scMetadata <- read.csv("malignant.8kgenes.tumorMetadata.csv", row.names=1,header=TRUE)
-colnames(scMetadata) <- "CellType"
-cellLabels <- as.data.frame(scMetadata)
-
-
-# Create single Bioconductor object using SingleCellExperiment
-source("https://bioconductor.org/biocLite.R")
-biocLite(c("SingleCellExperiment"))
 
 library(SingleCellExperiment)
-scHumanMelanoma <- SingleCellExperiment(assays = list(counts = exprMatrix),
-                                      colData=data.frame(cellLabels[colnames(exprMatrix),, drop=FALSE]))
+load("data/sceMouseBrain.RData")
+pepe <- counts(sceMouseBrain)
+
+scHumanMelanoma <- SingleCellExperiment(assays = list(counts = exprMatrix),colData=data.frame(cellLabels[colnames(exprMatrix),, drop=FALSE]))
 
 # save scHumanMelanoma bioconductor object
 dir.create("SCENIC_data")
