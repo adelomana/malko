@@ -1,9 +1,12 @@
-
-#  SCENIC Set-up -------------------------------------------------------
+# 1. SCENIC Set-up ----
 
 # 0.1. SCENIC dependencies
 source("https://bioconductor.org/biocLite.R")
-biocLite(c("GENIE3", "RcisTarget", "AUCell"))
+#biocLite(c("GENIE3", "RcisTarget", "AUCell"))
+
+library("GENIE3")
+library("RcisTarget")
+library("AUCell")
 
 # Check versions. Correct versions are: AUCell 1.2.4, RcisTarget 1.0.2, and GENIE3 1.2.1 or posterior.
 packageVersion("AUCell")
@@ -12,17 +15,24 @@ packageVersion("GENIE3")
 
 ## Install recommended packages for visualization and parallel processing
 # Recommended to run AUCell:
-biocLite(c("mixtools"))
+#biocLite(c("mixtools"))
+library("mixtools")
 # To visualize the binary matrices and perform t-SNEs:
-biocLite(c("NMF", "Rtsne", "R2HTML"))
+#biocLite(c("NMF", "Rtsne", "R2HTML"))
+library("NMF")
+library("Rtsne")
+library("R2HTML")
 # To support paralell execution:
-biocLite(c("doMC", "doRNG"))
+#biocLite(c("doMC", "doRNG"))
+library("doMC")
+library("doRNG")
 # To visualize in http://scope.aertslab.org
-install.packages("devtools")
+#install.packages("devtools")
+library(devtools)
 devtools::install_github("aertslab/SCopeLoomR")
 
-install.packages('Rcurl')
-install.packages('XML')
+library("RCurl")
+library("XML")
 
 # 0.2. Install SCENIC
 setwd("/Volumes/omics4tb/alomana/projects/mscni/src/scenic/")
@@ -45,68 +55,57 @@ for(featherURL in dbFiles)
   if(file.exists(descrURL)) download.file(descrURL, destfile=basename(descrURL))
 }
 
-# End SCENIC Set-up -------------------------------------------------------
+# End SCENIC Set-up
 
+# 1. download test data
 
+# (This may take a few minutes)
+#biocLite(c("GEOquery"))
+library(GEOquery)
+geoFile <- getGEOSuppFiles("GSE60361", makeDirectory=FALSE)
+gzFile <- grep("Expression", basename(rownames(geoFile)), value=TRUE)
+txtFile <- gsub(".gz", "", gzFile)
+gunzip(gzFile, destname=txtFile, remove=TRUE)
 
-# SCENIC Analysis ---------------------------------------------------------
+library(data.table)
+geoData <- fread(txtFile, sep="\t")
+musGeneNames <- unname(unlist(geoData[,1, with=FALSE]))
+musExprMatrix <- as.matrix(geoData[,-1, with=FALSE])
+rm(geoData)
+dim(musExprMatrix)
+rownames(musExprMatrix) <- musGeneNames
+musExprMatrix[1:5,1:4]
+
+# 2. SCENIC Analysis ----
 
 # Load single-cell dataset
-scData=read.table("/Volumes/omics4tb/alomana/projects/mscni/data/testing.txt",sep="\t")
+library(data.table)
+melanomaData=fread("/Volumes/omics4tb/alomana/projects/mscni/data/testing.txt",sep="\t")
 
-dataLength=dim(scData)[1]
-dataWidth=dim(scData)[2]
+dataLength=dim(melanomaData)[1]
+dataWidth=dim(melanomaData)[2]
 
-geneNames=as.vector(unname(unlist(scData[1,4:dataWidth])))
-cellNames=as.vector(unname(unlist(scData[2:dataLength,1])))
-exprMatrix=as.matrix(scData[2:dataLength,4:dataWidth])
+geneNames=names(unlist(melanomaData[1,4:dataWidth]))
+cellNames=unname(unlist(melanomaData[1:dataLength,1]))
+melanomaExpression=t(as.matrix(melanomaData[1:dataLength,4:dataWidth]))
+TPMplusOne=10**melanomaExpression
+numericalError=10**melanomaExpression[1,1]
+TPMs=TPMplusOne-numericalError
 
-dim(exprMatrix)
-length(cellNames)
-length(geneNames)
+rownames(TPMs)=geneNames
+colnames(TPMs)=cellNames
 
-rownames(exprMatrix)=cellNames
-colnames(exprMatrix)=geneNames
-
-dim(exprMatrix)
-
-
-library(SingleCellExperiment)
-load("data/sceMouseBrain.RData")
-pepe <- counts(sceMouseBrain)
-
-scHumanMelanoma <- SingleCellExperiment(assays = list(counts = exprMatrix),colData=data.frame(cellLabels[colnames(exprMatrix),, drop=FALSE]))
-
-# save scHumanMelanoma bioconductor object
-dir.create("SCENIC_data")
-save(scHumanMelanoma, file="data/scHumanMelanoma.RData")
-
-# Load bioconductor object into Matrix form for SCENIC analysis
-load("SCENIC_data/scHumanMelanoma.RData")
-exprMat <- counts(scHumanMelanoma)
-dim(exprMat)
-
-# Collect information used in plot labels
-cellInfo <- colData(scHumanMelanoma)
-cellInfo$nGene <- colSums(exprMat>0)
-cellInfo <- data.frame(cellInfo)
-head(cellInfo)
-dir.create("int")
-saveRDS(cellInfo, file="int/cellInfo.Rds")
-
-# Color to assign to the variables (same format as for NMF::aheatmap)
-colVars <- list(CellType=setNames(c("forestgreen", "darkorange", "magenta4", "hotpink", "red3", "skyblue"), 
-                                  c("Mel78", "Mel79", "Mel80", "Mel81", "Mel88", "Mel89")))
-saveRDS(colVars, file="int/colVars.Rds")
-plot.new(); legend(0,1, fill=colVars$CellType, legend=names(colVars$CellType))
-
-# Set inputs for SCENIC run
+# calling SCENIC ----
+dir.create("SCENIC_yapeng")
+setwd("SCENIC_yapeng")
 
 library(SCENIC)
 org="hgnc" # or hgnc, or dmel
-dbDir="/Users/MattWall/Desktop/network_package/data/RcisTarget" # RcisTarget databases location
-myDatasetTitle="SCENIC example on Human Melanoma" # choose a name for your analysis
+dbDir="/Volumes/omics4tb/alomana/projects/mscni/src/scenic/cisTarget_databases" # RcisTarget databases location
+myDatasetTitle="SCENIC yapeng data analysis" # choose a name for your analysis
 scenicOptions <- initializeScenic(org=org, dbDir=dbDir, datasetTitle=myDatasetTitle, nCores=4) 
+
+dir.create("int")
 
 # Modify if needed
 scenicOptions@inputDatasetInfo$cellInfo <- "int/cellInfo.Rds"
@@ -119,33 +118,31 @@ scenicOptions@settings$db_mcVersion <- "v9"
 saveRDS(scenicOptions, file="int/scenicOptions.Rds") 
 
 # Analyze matrix for noise removal
-nCellsPerGene <- apply(exprMat, 1, function(x) sum(x>0))
-nCountsPerGene <- apply(exprMat, 1, sum)
+nCellsPerGene <- apply(TPMs, 1, function(x) sum(x>0))
+nCountsPerGene <- apply(TPMs, 1, sum)
 
 summary(nCellsPerGene)
 summary(nCountsPerGene)
-max(exprMat)
-sum(exprMat>0) / sum(exprMat==0)
+max(TPMs)
+sum(TPMs>0) / sum(TPMs==0)
 
-# Filter 1: Remove cells that on average have fewer than 1 log2(TPM+1) in 1% of cells
-
-minReads <- 2*.01*ncol(exprMat)
+# Filter 1: Remove cells that on average have fewer than 5 TPMs in 1% of cells
+minReads <- 5*.01*ncol(TPMs)
 genesLeft_minReads <- names(nCountsPerGene)[which(nCountsPerGene > minReads)]
 length(genesLeft_minReads)
 
 #Filter 2: Remove genes that appear in fewer than 1% of cells
-minSamples <- ncol(exprMat)*.01
+minSamples <- ncol(TPMs)*.01
 nCellsPerGene2 <- nCellsPerGene[genesLeft_minReads]
 genesLeft_minCells <- names(nCellsPerGene2)[which(nCellsPerGene2 > minSamples)]
 length(genesLeft_minCells)
 
 #Filter 3: Only keep the genes in the reference databases
-
 library(RcisTarget)
 motifRankings <- importRankings(getDatabases(scenicOptions)[[1]]) # either one, they should have the same genes
 genesInDatabase <- colnames(getRanking(motifRankings))
-genesLeft_minCells_inDatabases <- genesLeft_minCells[which(genesLeft_minCells %in% genesInDatabase)]
-length(genesLeft_minCells_inDatabases)
+
+working line
 
 # Check whether any relevant gene / potential gene of interest is missing:
 #interestingGenes <- c("Neurod1", "Sox10", "Dlx1")
