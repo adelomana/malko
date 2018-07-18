@@ -43,17 +43,17 @@ devtools::install_github("aertslab/SCENIC")
 # 0.3. Download databases
 ## Download motif databases for RcisTarget (slow: can take >30 min)
 
-dbFiles <- c("https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-500bp-upstream-7species.mc9nr.feather",
-             "https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-tss-centered-10kb-7species.mc9nr.feather")
+#dbFiles <- c("https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-500bp-upstream-7species.mc9nr.feather",
+#             "https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-tss-centered-10kb-7species.mc9nr.feather")
 # mc9nr: Motif collection version 9: 24k motifs
 
-dir.create("cisTarget_databases"); setwd("cisTarget_databases") # if needed
-for(featherURL in dbFiles)
-{
-  download.file(featherURL, destfile=basename(featherURL)) # saved in current dir
-  descrURL <- gsub(".feather$", ".descr", featherURL)
-  if(file.exists(descrURL)) download.file(descrURL, destfile=basename(descrURL))
-}
+#dir.create("cisTarget_databases"); setwd("cisTarget_databases") # if needed
+#for(featherURL in dbFiles)
+#{
+#  download.file(featherURL, destfile=basename(featherURL)) # saved in current dir
+#  descrURL <- gsub(".feather$", ".descr", featherURL)
+#  if(file.exists(descrURL)) download.file(descrURL, destfile=basename(descrURL))
+#}
 
 # End SCENIC Set-up
 
@@ -80,7 +80,8 @@ musExprMatrix[1:5,1:4]
 
 # Load single-cell dataset
 library(data.table)
-melanomaData=fread("/Volumes/omics4tb/alomana/projects/mscni/data/testing.txt",sep="\t")
+melanomaData=fread("/Volumes/omics4tb/alomana/projects/mscni/data/single.cell.data.txt",sep="\t")
+
 
 dataLength=dim(melanomaData)[1]
 dataWidth=dim(melanomaData)[2]
@@ -142,25 +143,20 @@ library(RcisTarget)
 motifRankings <- importRankings(getDatabases(scenicOptions)[[1]]) # either one, they should have the same genes
 genesInDatabase <- colnames(getRanking(motifRankings))
 
-working line
-
-# Check whether any relevant gene / potential gene of interest is missing:
-#interestingGenes <- c("Neurod1", "Sox10", "Dlx1")
-#interestingGenes[which(!interestingGenes %in% genesLeft_minCells_inDatabases)]
+genesLeft_minCells_inDatabases <- genesLeft_minCells[which(genesLeft_minCells %in% genesInDatabase)]
+length(genesLeft_minCells_inDatabases)
 
 genesKept <- genesLeft_minCells_inDatabases
 saveRDS(genesKept, file=getIntName(scenicOptions, "genesKept"))
 
-exprMat_filtered <- exprMat[genesKept, ]
-
-# To avoid confusion in the coming steps:
-rm(exprMat)
+TPMs_filtered <- TPMs[genesKept, ]
+rm(TPMs)
 
 ## Perform Correlation
-corrMat <- cor(t(exprMat_filtered), method="spearman")
+corrMat <- cor(t(TPMs_filtered), method="spearman")
 # (Only the rows for TFs will be needed needed):
-allTFs <- getDbTfs(scenicOptions)
-corrMat <- corrMat[which(rownames(corrMat) %in% allTFs),]
+# allTFs <- getDbTfs(scenicOptions)
+# corrMat <- corrMat[which(rownames(corrMat) %in% allTFs),]
 saveRDS(corrMat, file=getIntName(scenicOptions, "corrMat"))
 
 
@@ -169,134 +165,32 @@ saveRDS(corrMat, file=getIntName(scenicOptions, "corrMat"))
 
 
 # Run GENIE3
+# setwd("SCENIC_MouseBrain")
+# library(SCENIC)
+# scenicOptions <- readRDS("int/scenicOptions.Rds")
+# library(SingleCellExperiment)
+# load("data/sceMouseBrain.RData")
+# exprMat <- counts(sceMouseBrain)
+# genesKept <- loadInt(scenicOptions, "genesKept")
+# exprMat_filtered <- exprMat[genesKept,]
+
+# Optional: add log (if it is not logged/normalized already)
+exprMat_filtered <- log2(TPMs_filtered+1) 
+
+# Run GENIE3
 runGenie3(exprMat_filtered, scenicOptions)
 
-# Load bioconductor object into Matrix form for SCENIC analysis
-# setwd("/Users/MattWall/Desktop/network_package/data/")
-load("SCENIC_data/scHumanMelanoma.RData")
-exprMat <- counts(scHumanMelanoma)
-dim(exprMat)
+# Run GRNBoost
+exportsForGRNBoost(exprMat_filtered, scenicOptions)
 
-#Set SCENIC parameters
-library(SCENIC)
+# Build and score the GRN (runSCENIC)
 scenicOptions <- readRDS("int/scenicOptions.Rds")
 scenicOptions@settings$verbose <- TRUE
-scenicOptions@settings$nCores <- 4
+scenicOptions@settings$nCores <- 20
 scenicOptions@settings$seed <- 123
 
-install.packages('zoo')
-#Run SCENIC using wrappers
 runSCENIC_1_coexNetwork2modules(scenicOptions)
 runSCENIC_2_createRegulons(scenicOptions)
-runSCENIC_3_scoreCells(scenicOptions, exprMat)
+runSCENIC_3_scoreCells(scenicOptions, exprMat_filtered)
 
-
-# End SCENIC run ----------------------------------------------------------
-
-
-# Visualize results with t-SNE --------------------------------------------
-
-scenicOptions@settings$seed <- 123 # same seed for all of them
-# Grid search of different t-SNE settings:
-fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=c(20,30,40), perpl=c(20,30,40))
-fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=c(20,30,40), perpl=c(20,30,40), onlyHighConf=TRUE, filePrefix="int/tSNE_oHC")
-# Plot gridsearch t-SNE results as pdf (individual files in int/): 
-fileNames <- paste0("int/",grep(".Rds", grep("tSNE_", list.files("int"), value=T), value=T))
-plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE)
-
-par(mfcol=c(3,3))
-par(mar=c(1,1,1,1)) #This prevents the plotting error "Error in plot.new() : figure margins too large"
-fileNames <- paste0("int/",grep(".Rds", grep("tSNE_AUC", list.files("int"), value=T, perl = T), value=T))
-plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE, varName="CellType", cex=.5)
-
-# Using only "high-confidence" regulons (normally similar)
-par(mfcol=c(3,3))
-fileNames <- paste0("int/",grep(".Rds", grep("tSNE_oHC_AUC", list.files("int"), value=T, perl = T), value=T))
-plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE, varName="CellType", cex=.5)
-
-# Set tSNE defaults 
-scenicOptions@settings$defaultTsne$aucType <- "AUC"
-scenicOptions@settings$defaultTsne$dims <- 30
-scenicOptions@settings$defaultTsne$perpl <- 40
-saveRDS(scenicOptions, file="int/scenicOptions.Rds")
-
-
-# scenicOptions@settings$devType="png"
-runSCENIC_4_aucell_binarize(scenicOptions)
-
-# prepare for plotting
-install.packages("rbokeh")
-setwd("/Users/MattWall/Desktop/network_package/data/")
-logMat <- exprMat # Better if it is logged/normalized
-aucellApp <- plotTsne_AUCellApp(scenicOptions, logMat) #default t-SNE
-savedSelections <- shiny::runApp(aucellApp)
-
-#AUCell_plotTSNE() #to save static plots:
-  
-tSNE_scenic <- readRDS(tsneFileName(scenicOptions))
-aucell_regulonAUC <- loadInt(scenicOptions, "aucell_regulonAUC")
-
-library(KernSmooth)
-library(RColorBrewer)
-par(mar=c(1,1,1,1)) #This prevents the plotting error "Error in plot.new() : figure margins too large"
-dens2d <- bkde2D(tSNE_scenic$Y, 1)$fhat
-image(dens2d, col=brewer.pal(9, "YlOrBr"), axes=FALSE)
-contour(dens2d, add=TRUE, nlevels=5, drawlabels=FALSE)
-
-# Show TF expression:
-par(mfrow=c(2,3))
-AUCell::AUCell_plotTSNE(tSNE_scenic$Y, exprMat, aucell_regulonAUC[onlyNonDuplicatedExtended(rownames(aucell_regulonAUC))[c("XBP1", "ETV1", "TP53")],], plots="Expression")
-# Save all AUC into one PDF:
-install.packages("Cairo")
-Cairo::CairoPDF("output/Step4_BinaryRegulonActivity_tSNE_colByAUC.pdf", width=20, height=15)
-par(mfrow=c(4,6))
-AUCell::AUCell_plotTSNE(tSNE_scenic$Y, cellsAUC=aucell_regulonAUC, plots="AUC")
-dev.off()
-
-
-# Show several regulons simultaneously
-
-#par(bg = "black")
-#par(mfrow=c(1,2))
-#regulonNames <- c( "ETV1","XBP1") # replace with the names of the regulons to be viewed
-#cellCol <- plotTsne_rgb(scenicOptions, regulonNames, aucType="AUC", aucMaxContrast=0.6)
-#text(-30,-25, attr(cellCol,"red"), col="red", cex=.7, pos=4)
-#text(-30,-25-4, attr(cellCol,"green"), col="green3", cex=.7, pos=4)
-
-
-# Load Regulons -----------------------------------------------------------
-
-regulons <- loadInt(scenicOptions, "regulons")
-regulons[c("ETV1", "XBP1")]
-
-# Analyze regulon
-
-install.packages("gplots")
-library("gplots")
-
-regulonName <- "MEF2A_extended"
-regulonGenes <- regulons[c(regulonName)][[1]]
-regulonExpression <- zScore[regulonGenes,]
-pdf(paste(paste(regulonName,"heatmap",sep = "_"),"pdf",sep = "."))
-heatmap.2(regulonExpression, trace="none")
-dev.off()
-
-hist(colVars(etv1Expression))
-
-# Search and display regulon motifs
-regulonTargetsInfo <- loadInt(scenicOptions, "regulonTargetsInfo")
-regulonTargetsInfo <- RcisTarget::addLogo(regulonTargetsInfo, motifCol="bestMotif")
-regulonTargetsInfo$Genie3Weight <- signif(regulonTargetsInfo$Genie3Weight, 2)
-
-install.packages("DT")
-colsToShow <- c("TF", "gene", "nMotifs", "bestMotif", "logo", "NES", "highConfAnnot", "Genie3Weight")
-DT::datatable(regulonTargetsInfo[TF=="ETV1" & highConfAnnot==TRUE, colsToShow, with=F], escape=FALSE, filter="top")
-
-######
-
-#check modules from GENIE3
-
-#tfModules_asDF <- loadInt(scenicOptions, "tfModules_asDF")
-
-######
 
