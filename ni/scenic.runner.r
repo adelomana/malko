@@ -32,50 +32,30 @@ library('zoo')
 # To visualize in http://scope.aertslab.org
 #install.packages("devtools")
 library(devtools)
-devtools::install_github("aertslab/SCopeLoomR")
+install_github("aertslab/SCopeLoomR")
 
 # 0.2. Install SCENIC ----
-setwd("/Volumes/omics4tb/alomana/projects/mscni/src/scenic/")
+setwd("/Volumes/omics4tb/alomana/projects/mscni/results/scenic.2019/")
 
 # install.packages("devtools")
-devtools::install_github("aertslab/SCENIC")
+install_github("aertslab/SCENIC")
 library(SCENIC)
 
 # 0.3. Download databases ----
 ## Download motif databases for RcisTarget (slow: can take >30 min)
 
-#dbFiles <- c("https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-500bp-upstream-7species.mc9nr.feather",
-#             "https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-tss-centered-10kb-7species.mc9nr.feather")
+dbFiles <- c("https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-500bp-upstream-7species.mc9nr.feather",
+             "https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg19/refseq_r45/mc9nr/gene_based/hg19-tss-centered-10kb-7species.mc9nr.feather")
 # mc9nr: Motif collection version 9: 24k motifs
 
-#dir.create("cisTarget_databases"); setwd("cisTarget_databases") # if needed
-#for(featherURL in dbFiles)
-#{
-#  download.file(featherURL, destfile=basename(featherURL)) # saved in current dir
-#  descrURL <- gsub(".feather$", ".descr", featherURL)
-#  if(file.exists(descrURL)) download.file(descrURL, destfile=basename(descrURL))
-#}
-
+# dir.create("cisTarget_databases"); setwd("cisTarget_databases") # if needed
+for(featherURL in dbFiles)
+{
+  download.file(featherURL, destfile=basename(featherURL)) # saved in current dir
+  descrURL <- gsub(".feather$", ".descr", featherURL)
+  if(file.exists(descrURL)) download.file(descrURL, destfile=basename(descrURL))
+}
 # End SCENIC Set-up
-
-################# work with test data
-
-# (This may take a few minutes)
-#biocLite(c("GEOquery"))
-#library(GEOquery)
-#geoFile <- getGEOSuppFiles("GSE60361", makeDirectory=FALSE)
-#gzFile <- grep("Expression", basename(rownames(geoFile)), value=TRUE)
-#txtFile <- gsub(".gz", "", gzFile)
-#gunzip(gzFile, destname=txtFile, remove=TRUE)
-
-#library(data.table)
-#geoData <- fread(txtFile, sep="\t")
-#musGeneNames <- unname(unlist(geoData[,1, with=FALSE]))
-#musExprMatrix <- as.matrix(geoData[,-1, with=FALSE])
-#rm(geoData)
-#dim(musExprMatrix)
-#rownames(musExprMatrix) <- musGeneNames
-#musExprMatrix[1:5,1:4]
 
 # 1. Melanoma data loading and filtering ----
 
@@ -96,13 +76,13 @@ rownames(TPMs)=geneNames
 colnames(TPMs)=cellNames
 
 # 1.2. filter data for SCENIC ----
-dir.create("SCENIC_yapeng")
-setwd("SCENIC_yapeng")
+dir.create("SCENIC_one.day_2019.01.23")
+setwd("SCENIC_one.day_2019.01.23")
 
 org="hgnc" # or hgnc, or dmel
-dbDir="/Volumes/omics4tb/alomana/projects/mscni/src/scenic/cisTarget_databases" # RcisTarget databases location
-myDatasetTitle="SCENIC yapeng data analysis" # choose a name for your analysis
-scenicOptions <- initializeScenic(org=org, dbDir=dbDir, datasetTitle=myDatasetTitle, nCores=6) 
+dbDir="/Volumes/omics4tb/alomana/projects/mscni/results/scenic.2019/cisTarget_databases" # RcisTarget databases location
+myDatasetTitle="SCENIC.2019.01.23.one.day" # choose a name for your analysis
+scenicOptions <- initializeScenic(org=org, dbDir=dbDir, datasetTitle=myDatasetTitle, nCores=8) 
 
 dir.create("int")
 
@@ -174,39 +154,46 @@ saveRDS(corrMat, file=getIntName(scenicOptions, "corrMat"))
 exprMat_filtered <- log2(TPMs_filtered+1) 
 
 # 2.1. Run GENIE3 ----
+library(tictoc)
+tic()
 runGenie3(exprMat_filtered, scenicOptions)
+toc()
 
 # 2.2. Build and score the GRN (runSCENIC) ----
 scenicOptions <- readRDS("int/scenicOptions.Rds")
 scenicOptions@settings$verbose <- TRUE
-scenicOptions@settings$nCores <- 6
+scenicOptions@settings$nCores <- 8
 scenicOptions@settings$seed <- 123
 
+tic()
 runSCENIC_1_coexNetwork2modules(scenicOptions)
 runSCENIC_2_createRegulons(scenicOptions)
 runSCENIC_3_scoreCells(scenicOptions, exprMat_filtered)
+toc()
+
+save.image('results.up2.section3.line174.RData')
 
 # 3. visualize results ----
 scenicOptions@settings$seed <- 123 # same seed for all of them
 # Run t-SNE with different settings:
-fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=c(5,15,50), perpl=c(5,15,50))
-fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=c(5,15,50), perpl=c(5,15,50), onlyHighConf=TRUE, filePrefix="int/tSNE_oHC")
+fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=c(5,25,50), perpl=c(10,15,20,25))
+fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=c(5,25,50), perpl=c(10,15,20,25), onlyHighConf=TRUE, filePrefix="int/tSNE_oHC")
 # Plot as pdf (individual files in int/): 
 fileNames <- paste0("int/",grep(".Rds", grep("tSNE_", list.files("int"), value=T), value=T))
 plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE)
 
-par(mfcol=c(3,3))
+par(mfcol=c(3,4))
 fileNames <- paste0("int/",grep(".Rds", grep("tSNE_AUC", list.files("int"), value=T, perl = T), value=T))
 plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE, cex=.5)
 
 # Using only "high-confidence" regulons (normally similar)
-par(mfcol=c(3,3))
+par(mfcol=c(3,4))
 fileNames <- paste0("int/",grep(".Rds", grep("tSNE_oHC_AUC", list.files("int"), value=T, perl = T), value=T))
 plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE, cex=.5)
 
 scenicOptions@settings$defaultTsne$aucType <- "AUC"
 scenicOptions@settings$defaultTsne$dims <- 50
-scenicOptions@settings$defaultTsne$perpl <- 50
+scenicOptions@settings$defaultTsne$perpl <- 25
 saveRDS(scenicOptions, file="int/scenicOptions.Rds") 
 
 # binarization of regulons
@@ -221,6 +208,32 @@ scenicOptions@fileNames$int["aucell_thresholds",1] <- "int/newThresholds.Rds"
 saveRDS(newThresholds, file=getIntName(scenicOptions, "aucell_thresholds"))
 saveRDS(scenicOptions, file="int/scenicOptions.Rds") 
 
-# exploring results
+# scenicOptions@settings$devType="png"
+exprMat <- exprMat_filtered 
+runSCENIC_4_aucell_binarize(scenicOptions)
 
+# 4. exploring results ----
+logMat <- exprMat # Better if it is logged/normalized
+aucellApp <- plotTsne_AUCellApp(scenicOptions, logMat) #default t-SNE
+savedSelections <- shiny::runApp(aucellApp)
+
+tSNE_scenic <- readRDS(tsneFileName(scenicOptions))
+aucell_regulonAUC <- loadInt(scenicOptions, "aucell_regulonAUC")
+
+# Show TF expression:
+par(mfrow=c(2,3))
+AUCell::AUCell_plotTSNE(tSNE_scenic$Y, exprMat, aucell_regulonAUC[onlyNonDuplicatedExtended(rownames(aucell_regulonAUC))[c("ATF4", "HOXB2", "MITF","HES1", "RXRG", "BRCA1")],], plots="Expression")
+
+save.image('up2line227.RData')
+
+# 8. Explore Regulons -----------------------------------------------------
+
+lst <- loadInt(scenicOptions, "regulons")
+
+max_l <- max(rapply(lst, length))
+df=as.data.frame(rapply(lst, function(x) 'length<-'(x, max_l), how="list"))
+tdf=transpose(df)
+colnames(tdf) <- rownames(df)
+rownames(tdf) <- colnames(df)
+write.csv(tdf,file='testing.csv')
 

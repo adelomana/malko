@@ -13,8 +13,13 @@ E=A(2:end,2:end);
 labels=A(2:end,1);
 
 % 2. analysis
-[Y,loss] = tsne(E,'Algorithm','exact');
+% labels, dim, initDim, perplexity
+%Y = tsne(E,[],2,50,10); 
 
+Y = tsne(E); 
 % 3. plot figure
-% gscatter(Y(:,1),Y(:,2),labels);
-% print(figureFile,'-dpdf');
+gscatter(Y(:,1),Y(:,2),labels,'brgm');
+%print(figureFile,'-dpdf');
+
+%scatter3(Y(:,1),Y(:,2),Y(:,3),15,labels,'filled')
+
