@@ -7,7 +7,7 @@
 library(Seurat)
 
 # 1. read data
-expression=read.csv("/Volumes/omics4tb2/alomana/projects/mscni/data/seurat/count.file.alldays.csv",sep = ",",header=TRUE,row.names=1)
+expression=read.csv("/Volumes/omics4tb2/alomana/projects/mscni/data/for.seurat/count.file.alldays.csv",sep = ",",header=TRUE,row.names=1)
 
 # 2. create a Seurat object and run a preliminary filter
 seuratObject=CreateSeuratObject(raw.data=expression,min.cells=3,min.genes=200)
@@ -62,7 +62,7 @@ library(dplyr)
 top10 <- markers %>% group_by(cluster) %>% top_n(10, avg_logFC)
 DoHeatmap(object = seuratObject, genes.use = top10$gene, slim.col.label = TRUE, remove.key = TRUE)
 
-# 10. export clean data
+# 11. export clean data
 data_to_write_out <- as.data.frame(as.matrix(seuratObject@data))
 library(data.table)
 fwrite(x = data_to_write_out, row.names = TRUE, file = "/Volumes/omics4tb2/alomana/projects/mscni/results/seurat.cleaned.data.csv")
