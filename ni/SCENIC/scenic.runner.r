@@ -151,7 +151,7 @@ saveRDS(corrMat, file=getIntName(scenicOptions, "corrMat"))
 # exprMat_filtered <- exprMat[genesKept,]
 
 # Optional: add log (if it is not logged/normalized already)
-exprMat_filtered <- log2(TPMs_filtered+1) 
+exprMat_filtered <- log2(TPMs_filtered+1)
 
 # 2.1. Run GENIE3 ----
 library(tictoc)
