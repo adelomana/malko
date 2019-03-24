@@ -4,4 +4,4 @@ with open("program2Regulon.memberships.txt",'w') as f:
     f.write('#programID,regulonID\n')
     for i in range(len(program_list)):
         for element in program_list[i]:
-            f.write('{},{}\n'.format(i,element))
+            f.write('{}\t{}\n'.format(i,element))

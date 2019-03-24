@@ -130,4 +130,17 @@ runSCENIC_1_coexNetwork2modules(scenicOptions)
 runSCENIC_2_createRegulons(scenicOptions) 
 runSCENIC_3_scoreCells(scenicOptions, log2exprMat_filtered)
 
+# 8. binarize network activity
+runSCENIC_4_aucell_binarize(scenicOptions)
 
+# 9. Clustering / dimensionality reduction on the regulon activity
+nPcs <- c(5,15,50)
+# Run t-SNE with different settings:
+fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=nPcs, perpl=c(5,15,50))
+fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=nPcs, perpl=c(5,15,50), onlyHighConf=TRUE, filePrefix="int/tSNE_oHC")
+# Plot as pdf (individual files in int/):
+fileNames <- paste0("int/",grep(".Rds", grep("tSNE_", list.files("int"), value=T), value=T))
+
+par(mfrow=c(length(nPcs), 3))
+fileNames <- paste0("int/",grep(".Rds", grep("tSNE_AUC", list.files("int"), value=T, perl = T), value=T))
+plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE, cex=.5)
