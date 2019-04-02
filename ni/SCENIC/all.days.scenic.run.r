@@ -132,6 +132,7 @@ runSCENIC_3_scoreCells(scenicOptions, log2exprMat_filtered)
 
 # 8. binarize network activity
 runSCENIC_4_aucell_binarize(scenicOptions)
+save.image(file ='/Volumes/omics4tb2/alomana/projects/mscni/results/SCENIC/tempo.8completed.2019.03.26.RData')
 
 # 9. Clustering / dimensionality reduction on the regulon activity
 nPcs <- c(5,15,50)
