@@ -79,7 +79,7 @@ adata = adata[:,adata.var['highly_variable']]
 print(adata)
 
 # 5. regress out and scale
-scanpy.pp.regress_out(adata, ['n_counts', 'percent_mito'])
+scanpy.pp.regress_out(adata, ['n_counts', 'percent_mito']) # dont forget to regress bc of cell cycle
 scanpy.pp.scale(adata, max_value=10)
 
 # 6. associate sample metadata
