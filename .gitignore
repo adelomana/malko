@@ -30,3 +30,4 @@ visualization/tsne/matlab/tsne_p.m
 visualization/tsne/matlab/x2p.m
 visualization/tsne/matlab/tsne.m
 *.h5ad
+gbm/scanpy/.DS_Store
