@@ -34,3 +34,5 @@ gbm/scanpy/.DS_Store
 visualization/scanpy/test.csv
 melanoma/ni/MINER/.ipynb_checkpoints/miner_stable.2019.03.14.mscni-checkpoint.ipynb
 melanoma/visualization/genes/.ipynb_checkpoints/scanpy.genes-checkpoint.ipynb
+melanoma/visualization/scanpy/.ipynb_checkpoints/scanpy.eigengenes-checkpoint.ipynb
+melanoma/visualization/scanpy/.ipynb_checkpoints/scanpy.genes-checkpoint.ipynb
