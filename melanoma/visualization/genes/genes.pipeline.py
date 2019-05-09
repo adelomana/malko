@@ -1,5 +1,4 @@
-import numpy,pandas,datetime,sklearn,s_dbw,sys
-import matplotlib,matplotlib.pyplot
+import numpy,pandas,datetime,sklearn,s_dbw,sys,pickle
 import multiprocessing,multiprocessing.pool
 import scanpy
 scanpy.settings.verbosity=5
@@ -9,30 +8,42 @@ def robustFinder(nei):
     '''
     This function returns the mean and standard deviation of goodness of fit for bootstrapped data.
     '''
+    
+    # work on original data
+    scanpy.tl.pca(adata,svd_solver='arpack')
+    scanpy.pp.neighbors(adata,n_neighbors=nei,n_pcs=50)
+    scanpy.tl.umap(adata)
+    scanpy.tl.louvain(adata)
 
+    positions=adata.obsm['X_pca']
+    categories=adata.obs['louvain'].tolist()
+    numericCategories=[float(element) for element in categories]
+    uniqueCategories=list(set(numericCategories))
+
+    # goodness of partition
+    SS=sklearn.metrics.silhouette_score(positions,numericCategories,metric='euclidean')
+    CHI=sklearn.metrics.calinski_harabaz_score(positions,numericCategories)
+    VI=s_dbw.S_Dbw(positions,numericCategories)
+    original=(nei,len(uniqueCategories),SS,CHI,VI)
+    
     allK=[];allSS=[];allCHI=[];allVI=[]
     for iteration in range(bootstrapIterations):
 
-        print(iteration)
-        
+        # changes
         new=adata.copy()
-        
-        newIndices=numpy.random.choice(new.shape[0],new.shape[0])
-        new.X=new.X[newIndices,:]
+        allIndices=numpy.arange(adata.shape[0])
+        deemed=numpy.random.randint(adata.shape[0])
+        allIndicesButOne=numpy.delete(allIndices,deemed)
+        new=new[allIndicesButOne,:]
         
         scanpy.tl.pca(new,svd_solver='arpack')
         scanpy.pp.neighbors(new,n_neighbors=nei,n_pcs=50)
         scanpy.tl.umap(new)
         scanpy.tl.louvain(new)
-        scanpy.pl.umap(new,color=['louvain'],palette='Set3',save='new.louvain.pdf',show=False)
+        #scanpy.pl.umap(new,color=['louvain'],palette='Set3',save='new.nei{}.iter{}.louvain.pdf'.format(nei,iteration),show=False)
+        #matplotlib.pyplot.close()
 
-        scanpy.tl.pca(adata,svd_solver='arpack')
-        scanpy.pp.neighbors(adata,n_neighbors=nei,n_pcs=50)
-        scanpy.tl.umap(adata)
-        scanpy.tl.louvain(adata)
-        scanpy.pl.umap(adata,color=['louvain'],palette='Set3',save='old.louvain.pdf',show=False)
-
-        positions=new.obsm['X_umap']
+        positions=new.obsm['X_pca']
         categories=new.obs['louvain'].tolist()
         numericCategories=[float(element) for element in categories]
         uniqueCategories=list(set(numericCategories))
@@ -42,31 +53,30 @@ def robustFinder(nei):
         CHI=sklearn.metrics.calinski_harabaz_score(positions,numericCategories)
         VI=s_dbw.S_Dbw(positions,numericCategories)
 
-        print(len(uniqueCategories),SS,CHI,VI)
+        #print('neighbors: {}; iter: {}; clusters: {}; SS: {:.2E}; CHI: {:.2E}; VI: {:.2E}'.format(nei,iteration,len(uniqueCategories),SS,CHI,VI))
         
         allK.append(len(uniqueCategories)); allSS.append(SS); allCHI.append(CHI); allVI.append(VI)
 
     meanResult=(nei,numpy.mean(allK),numpy.mean(allSS),numpy.mean(allCHI),numpy.mean(allVI))
     stdResult=(nei,numpy.std(allK),numpy.std(allSS),numpy.std(allCHI),numpy.std(allVI))
 
-    print(meanResult)
-
-    return [meanResult,stdResult]
+    return [original,meanResult,stdResult]
 
 ###
 ### MAIN
 ###
 
 # 0. User defined variables
-bootstrapIterations=3
-numberOfNeighbors=numpy.arange(10,40+10,10)
+bootstrapIterations=25
+numberOfNeighbors=numpy.arange(5,40+5,5)
 print(numberOfNeighbors)
-numberOfThreads=4
+numberOfThreads=2
+jar='jars/exploration.results.003.pickle'
 
 # 1. Read data
 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S \t READ DATA FILE"))
-#idata=scanpy.read_csv('/Volumes/omics4tb2/alomana/projects/mscni/data/scanpy/count.file.all.day.clean.csv')
-idata=scanpy.read_csv('data/count.file.all.day.clean.csv')
+idata=scanpy.read_csv('/Volumes/omics4tb2/alomana/projects/mscni/data/scanpy/count.file.all.day.clean.csv')
+#idata=scanpy.read_csv('data/count.file.all.day.clean.csv')
 adata=idata.transpose()
 print(adata)
 
@@ -90,7 +100,7 @@ scanpy.pp.regress_out(adata, ['n_counts'])
 scanpy.pp.scale(adata, max_value=10)
 
 # 3. Find number of states
-print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S \t FIND NUMBER OF CELL STATES"))
+print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S \t EXPLORE PARAMETER SPACE"))
 scanpy.settings.verbosity=0
 
 #hydra=multiprocessing.pool.Pool(numberOfThreads)
@@ -98,23 +108,14 @@ scanpy.settings.verbosity=0
 
 results=[]
 for nei in numberOfNeighbors:
-    result=robustFinder()
+    result=robustFinder(nei)
     results.append(result)
 
-
-
-
-
-
-
-
-# 3.3. save results, plot elsewhere.
-#pickel!
+# 4. save results
+print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S \t SAVE RESULTS"))
+f=open(jar,'wb')
+pickle.dump(results,f)
+f.close()
     
-# make sure that changing one single cell hardly changes anything. Otherwise, think about why?
-
-print('\t generate figure...')
-
-
-print(datetime.datetime.now().strftime("\t %Y-%m-%d %H:%M:%S"))
-print('... completed.')
+# 5. final call
+print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S \t COMPLETED"))
