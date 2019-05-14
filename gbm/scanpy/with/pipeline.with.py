@@ -5,7 +5,7 @@ scanpy.settings.verbosity=5
 
 # 1. read data
 print('reading data...')
-adata=scanpy.read_10x_mtx('/Volumes/omics4tb2/alomana/projects/gbm/results/with/outs/filtered_feature_bc_matrix',var_names='gene_symbols',cache=True)
+adata=scanpy.read_10x_mtx('/Volumes/omics4tb2/alomana/projects/gbm/results/cellRanger/with/outs/filtered_feature_bc_matrix',var_names='gene_symbols',cache=True)
 adata.var_names_make_unique() 
 print(adata)
 print()
@@ -70,8 +70,8 @@ adata.raw = adata
 # 4. selection of highly-variable genes
 #scanpy.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)  # n_obs × n_vars = 2673 × 1822
 #scanpy.pp.highly_variable_genes(adata, min_mean=0.1, max_mean=4, min_disp=0.5)     # n_obs × n_vars = 2673 × 1386
-#scanpy.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=4, min_disp=1/3)   # n_obs × n_vars = 2673 × 2430
-scanpy.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=4, min_disp=0.5)   # n_obs × n_vars = 2673 × 1855 
+scanpy.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=4, min_disp=1/3)   # n_obs × n_vars = 2673 × 2430
+#scanpy.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=4, min_disp=0.5)   # n_obs × n_vars = 2673 × 1855 
 
 scanpy.pl.highly_variable_genes(adata,show=False,save='highly.variable.genes.pdf')
 print(adata)
@@ -123,8 +123,6 @@ scanpy.pl.tsne(adata,color='n_genes',palette='viridis',show=False,save='tSNE.gen
 print()
 
 # 9. UMAP resolution
-
-"""
 print('UMAP resolution...')
 possibleNeighbors=numpy.arange(30,101,1)
 louvainClusters=[]
@@ -147,10 +145,9 @@ for nei in possibleNeighbors:
 matplotlib.pyplot.plot(possibleNeighbors,louvainClusters,'o-',color='black')
 matplotlib.pyplot.xlabel('neighbors')
 matplotlib.pyplot.ylabel('clusters')
-matplotlib.pyplot.savefig('figures/louvainRanks.pdf')
-"""
+matplotlib.pyplot.savefig('louvainRanks.pdf')
 
-# 10. UMAP & Louvain once 
+# 10. UMAP & Louvain once again
 print('UMAP single day...')
 nei=90
 scanpy.pp.neighbors(adata,n_neighbors=nei,n_pcs=50,knn=True)
@@ -164,6 +161,8 @@ scanpy.pl.umap(adata, color='FABP7',palette='viridis',show=False,save='umap.FABP
 scanpy.tl.louvain(adata)
 scanpy.pl.umap(adata, color='louvain',palette='tab10',show=False,save='umap.louvain.{}.pdf'.format(nei))
 print()
+
+adata.write_csvs('/Volumes/omics4tb2/alomana/projects/gbm/results/scanpy/with/results.{}cells.{}genes'.format(adata.shape[0],adata.shape[1]),skip_data=False)
 
 # 11. per day
 print('UMAP per day...')

@@ -10,21 +10,23 @@ def robustFinder(nei):
     '''
     
     # work on original data
-    scanpy.tl.pca(adata,svd_solver='arpack')
-    scanpy.pp.neighbors(adata,n_neighbors=nei,n_pcs=50)
-    scanpy.tl.umap(adata)
-    scanpy.tl.louvain(adata)
+    #scanpy.tl.pca(adata,svd_solver='arpack')
+    #scanpy.pp.neighbors(adata,n_neighbors=nei,n_pcs=50)
+    #scanpy.tl.umap(adata)
+    #scanpy.tl.louvain(adata)
 
-    positions=adata.obsm['X_pca']
-    categories=adata.obs['louvain'].tolist()
-    numericCategories=[float(element) for element in categories]
-    uniqueCategories=list(set(numericCategories))
+    #positions=adata.obsm['X_pca']
+    #categories=adata.obs['louvain'].tolist()
+    #numericCategories=[float(element) for element in categories]
+    #uniqueCategories=list(set(numericCategories))
 
     # goodness of partition
-    SS=sklearn.metrics.silhouette_score(positions,numericCategories,metric='euclidean')
-    CHI=sklearn.metrics.calinski_harabaz_score(positions,numericCategories)
-    VI=s_dbw.S_Dbw(positions,numericCategories)
-    original=(nei,len(uniqueCategories),SS,CHI,VI)
+    #SS=sklearn.metrics.silhouette_score(positions,numericCategories,metric='euclidean')
+    #CHI=sklearn.metrics.calinski_harabaz_score(positions,numericCategories)
+    #VI=s_dbw.S_Dbw(positions,numericCategories)
+    #original=(nei,len(uniqueCategories),SS,CHI,VI)
+
+    original=()
     
     allK=[];allSS=[];allCHI=[];allVI=[]
     for iteration in range(bootstrapIterations):
@@ -34,7 +36,7 @@ def robustFinder(nei):
         allIndices=numpy.arange(adata.shape[0])
         deemed=numpy.random.randint(adata.shape[0])
         allIndicesButOne=numpy.delete(allIndices,deemed)
-        new=new[allIndicesButOne,:]
+        new.X=new.X[allIndicesButOne,:]
         
         scanpy.tl.pca(new,svd_solver='arpack')
         scanpy.pp.neighbors(new,n_neighbors=nei,n_pcs=50)
@@ -42,6 +44,7 @@ def robustFinder(nei):
         scanpy.tl.louvain(new)
         #scanpy.pl.umap(new,color=['louvain'],palette='Set3',save='new.nei{}.iter{}.louvain.pdf'.format(nei,iteration),show=False)
         #matplotlib.pyplot.close()
+        sys.exit()
 
         positions=new.obsm['X_pca']
         categories=new.obs['louvain'].tolist()

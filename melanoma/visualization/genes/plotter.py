@@ -54,6 +54,8 @@ ax4.plot(neighbors,meanVI,'-',color='green',lw=2)
 top=numpy.array(meanVI)+numpy.array(stdVI); bottom=numpy.array(meanVI)-numpy.array(stdVI)
 ax4.fill_between(neighbors,top,bottom,color='green',alpha=1/5,lw=0)
 
+
+
 ax1.set_ylabel('Partitions')
 ax1.set_xlabel('Neighbors')
 ax1.grid(linestyle=':',alpha=1/3)
